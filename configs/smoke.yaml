@@ -1,0 +1,15 @@
+profile: smoke
+training:
+  rounds: 2
+  local_epochs: 1
+  batch_size: 4
+  clients_total: 10
+  clients_per_round: 2
+  num_workers: 0
+qubo:
+  lambda: 1.0
+  mu: 2.0
+  qaoa_reps: 1
+  qaoa_shots: 128
+  qaoa_maxiter: 5
+

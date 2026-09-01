@@ -1,0 +1,15 @@
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+pyyaml
+torch
+torchvision
+medmnist
+qiskit
+qiskit-aer
+qiskit-machine-learning
+qiskit-optimization
+qiskit-algorithms
+cryptography

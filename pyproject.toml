@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fedqtrust"
+version = "0.1.0"
+description = "FedQTrust research repository for trustworthy quantum-resilient federated learning."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy",
+  "scikit-learn",
+  "matplotlib",
+  "pyyaml",
+  "torch",
+  "torchvision",
+  "medmnist",
+  "qiskit",
+  "qiskit-aer",
+  "qiskit-machine-learning",
+  "qiskit-optimization",
+  "qiskit-algorithms",
+  "cryptography",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+gpu = ["qiskit-aer-gpu"]
+
+[project.scripts]
+fedqtrust = "fedqtrust.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+addopts = "-q"

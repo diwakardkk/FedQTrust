@@ -1,0 +1,13 @@
+profile: phase2
+training:
+  rounds: 100
+  local_epochs: 3
+  batch_size: 32
+  clients_total: 40
+  clients_per_round: 5
+qubo:
+  lambda: 1.0
+  mu: 2.0
+  qaoa_reps: 3
+  qaoa_shots: 1024
+

@@ -1,0 +1,39 @@
+profile: paper
+seeds: [42, 123, 456, 789, 999]
+datasets: [pathmnist, octmnist, pneumoniamnist, retinamnist, breastmnist]
+training:
+  rounds: 100
+  local_epochs: 3
+  batch_size: 32
+  learning_rate: 0.01
+  weight_decay: 0.0001
+  clients_total: 40
+  clients_per_round: 5
+  amp: false
+  torch_compile: false
+  checkpoint_every: 5
+data:
+  root: data/raw
+  partitions: data/partitions
+  partition_alpha: 0.5
+  partition_seed: 42
+  validation_fraction: 0.2
+  min_samples_per_class: 10
+  max_partition_retries: 20
+trust:
+  alpha: 0.4
+  beta: 0.3
+  gamma: 0.3
+  tau_min: 0.1
+  theta: 0.4
+  reputation_decay: 0.9
+  consistency_window: 5
+qubo:
+  lambda: 1.0
+  mu: 2.0
+  qaoa_reps: 3
+  qaoa_shots: 1024
+  qaoa_maxiter: 100
+  qaoa_timeout: 60
+attack_start_round: 10
+

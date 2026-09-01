@@ -1,0 +1,17 @@
+main-v2.tex
+data/raw/*
+!data/raw/.gitkeep
+data/partitions/*
+!data/partitions/.gitkeep
+data/metadata/*
+!data/metadata/.gitkeep
+output/*
+!output/.gitkeep
+*.pt
+*.pth
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+*.egg-info/
+.DS_Store

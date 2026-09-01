@@ -1,0 +1,15 @@
+profile: phase1
+training:
+  rounds: 100
+  local_epochs: 3
+  batch_size: 32
+  clients_total: 40
+  clients_per_round: 5
+trust:
+  alpha: 0.4
+  beta: 0.3
+  gamma: 0.3
+qubo:
+  lambda: 1.0
+  mu: 2.0
+

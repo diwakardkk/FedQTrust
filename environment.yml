@@ -1,0 +1,23 @@
+name: fedqtrust
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python>=3.10
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - pyyaml
+  - pytorch
+  - torchvision
+  - pip:
+      - medmnist
+      - qiskit
+      - qiskit-aer
+      - qiskit-machine-learning
+      - qiskit-optimization
+      - qiskit-algorithms
+      - cryptography
