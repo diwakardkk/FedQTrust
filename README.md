@@ -241,6 +241,24 @@ output/gpu_once/run_YYYYMMDD_HHMMSS.zip
 
 For a paper submission, do not use the one-shot GPU bundle as the final result set. A publishable FedQTrust result set must include completed E1-E9 runs, raw per-round/per-client metrics, all required paper figures and tables, statistics, environment metadata, and strict evidence for paper-only infrastructure.
 
+## One Command for a GPU Collaborator
+
+After cloning the repository, the collaborator can run the strict full-suite entrypoint with one command:
+
+```bash
+PYTORCH_CUDA=cu124 bash scripts/run_full_experiment_once.sh
+```
+
+Use `PYTORCH_CUDA=cu121` or another supported value if the server needs a different PyTorch CUDA wheel:
+
+```bash
+PYTORCH_CUDA=cu121 bash scripts/run_full_experiment_once.sh
+```
+
+This command creates `.venv`, installs dependencies, checks `nvidia-smi`, installs CUDA PyTorch, runs preflight, tests, smoke test, data download, partition preparation, E1-E9 execution, report generation, and publication audit.
+
+It is intentionally strict: if Fabric, liboqs, CUDA, or the full E1-E9 experiment engines are missing, it fails instead of creating misleading paper-looking results.
+
 Run the strict suite entrypoint:
 
 ```bash

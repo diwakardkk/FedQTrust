@@ -204,6 +204,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         return run_experiment(args)
     if args.command == "run-all":
+        if args.profile == "paper":
+            raise RuntimeError(
+                "Full E1-E9 paper experiment engines are not implemented yet. "
+                "This command refuses to create misleading paper outputs. "
+                "Use run-gpu-once for validation, or implement E1-E9 engines before paper runs."
+            )
         for exp in [f"E{i}" for i in range(1, 10)]:
             args.experiment = exp
             run_experiment(args)
