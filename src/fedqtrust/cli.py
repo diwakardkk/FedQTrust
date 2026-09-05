@@ -10,6 +10,7 @@ from pathlib import Path
 from fedqtrust.config import load_config
 from fedqtrust.data.datasets import ensure_all_datasets
 from fedqtrust.device import write_environment_report
+from fedqtrust.one_shot import OneShotConfig, run_one_shot
 from fedqtrust.smoke import run_smoke
 
 
@@ -111,6 +112,41 @@ def generate_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_gpu_once(args: argparse.Namespace) -> int:
+    import os
+    import sys
+    import traceback
+
+    models = tuple(item.strip() for item in args.models.split(",") if item.strip())
+    datasets = tuple(item.strip().lower() for item in args.datasets.split(",") if item.strip())
+    cfg = OneShotConfig(
+        output_dir=args.output_dir,
+        device=args.device,
+        rounds=args.rounds,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        num_workers=args.num_workers,
+        seed=args.seed or 42,
+        require_cuda=args.require_cuda,
+        max_train_samples=args.max_train_samples,
+        max_eval_samples=args.max_eval_samples,
+        models=models,
+        datasets=datasets,
+    )
+    try:
+        run_one_shot(cfg, download_data=args.download_data, amp=args.amp)
+    except Exception:
+        traceback.print_exc()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(1)
+    else:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="fedqtrust")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -122,6 +158,21 @@ def main(argv: list[str] | None = None) -> int:
     for name in ["download-data", "prepare-data", "preflight", "run-all", "generate-report"]:
         p = sub.add_parser(name)
         _common(p)
+
+    gpu_once = sub.add_parser("run-gpu-once")
+    _common(gpu_once)
+    gpu_once.add_argument("--download-data", action="store_true")
+    gpu_once.add_argument("--rounds", type=int, default=3)
+    gpu_once.add_argument("--batch-size", type=int, default=128)
+    gpu_once.add_argument("--learning-rate", type=float, default=0.001)
+    gpu_once.add_argument("--weight-decay", type=float, default=1e-4)
+    gpu_once.add_argument("--num-workers", type=int, default=4)
+    gpu_once.add_argument("--max-train-samples", type=int, default=None)
+    gpu_once.add_argument("--max-eval-samples", type=int, default=None)
+    gpu_once.add_argument("--models", default="classical_cnn,fedqcnn")
+    gpu_once.add_argument("--datasets", default="pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist")
+    gpu_once.add_argument("--amp", action="store_true")
+    gpu_once.add_argument("--require-cuda", action="store_true")
 
     run = sub.add_parser("run")
     _common(run)
@@ -143,7 +194,8 @@ def main(argv: list[str] | None = None) -> int:
             args.experiment = exp
             run_experiment(args)
         return 0
+    if args.command == "run-gpu-once":
+        return run_gpu_once(args)
     if args.command == "generate-report":
         return generate_report(args)
     raise ValueError(args.command)
-

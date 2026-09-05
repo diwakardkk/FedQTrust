@@ -101,6 +101,14 @@ python -m pip install qiskit-aer-gpu
 
 If `qiskit-aer-gpu` is not compatible with the machine, keep normal `qiskit-aer`; FedQTrust reports the fallback instead of pretending GPU quantum simulation was used.
 
+The helper setup script uses the safe default install and checks CUDA visibility:
+
+```bash
+bash scripts/setup_gpu.sh
+```
+
+It does not require Fabric or liboqs.
+
 ## Verify CUDA
 
 ```bash
@@ -157,6 +165,78 @@ The smoke test downloads or validates:
 
 All archives stay in `data/raw/` and are ignored by git.
 
+## One-Command GPU Run to Share Results
+
+Ask the GPU-server user to run this after installation:
+
+```bash
+bash scripts/run_gpu_once.sh
+```
+
+This command:
+
+- downloads or validates all five MedMNIST datasets
+- uses `--device auto` and CUDA when available
+- trains `classical_cnn` and `fedqcnn` once on each dataset
+- evaluates official MedMNIST test splits
+- records round-level metrics, final metrics, environment metadata, figures, tables, model checkpoints, and a `DONE` file
+- creates a zip inside `output/gpu_once/` that can be sent back
+
+The result bundle is clearly labeled as a GPU one-shot validation run. It is useful for checking that the full installed code runs on the server and for collecting first real metrics. It is not the full paper E1-E9 experiment grid.
+
+Copy-paste instructions for the GPU user:
+
+```bash
+git clone https://github.com/diwakardkk/FedQTrust.git
+cd FedQTrust
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+
+# Choose the CUDA wheel matching the server. CUDA 12.4 example:
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .
+python -m pytest -q
+python -m fedqtrust smoke-test --download-data --device auto --output-dir output/smoke_test
+bash scripts/run_gpu_once.sh
+```
+
+Default run:
+
+```bash
+python -m fedqtrust run-gpu-once \
+  --download-data \
+  --device auto \
+  --output-dir output/gpu_once \
+  --rounds 3 \
+  --batch-size 128 \
+  --num-workers 4 \
+  --models classical_cnn,fedqcnn \
+  --datasets pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist \
+  --require-cuda \
+  --amp
+```
+
+Longer run:
+
+```bash
+ROUNDS=20 BATCH_SIZE=256 NUM_WORKERS=8 bash scripts/run_gpu_once.sh
+```
+
+Quick server check:
+
+```bash
+ROUNDS=1 DATASETS=pneumoniamnist MODELS=classical_cnn bash scripts/run_gpu_once.sh
+```
+
+After completion, send back:
+
+```text
+output/gpu_once/run_YYYYMMDD_HHMMSS.zip
+```
+
 ## Commands
 
 Download data:
@@ -181,6 +261,12 @@ Run one experiment manifest:
 
 ```bash
 python -m fedqtrust run --experiment E1 --profile phase1 --device cuda --resume --output-dir output
+```
+
+Run the one-shot GPU validation:
+
+```bash
+python -m fedqtrust run-gpu-once --download-data --device auto --output-dir output/gpu_once --rounds 3 --amp
 ```
 
 Run all experiment manifests:
