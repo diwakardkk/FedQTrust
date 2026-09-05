@@ -237,6 +237,30 @@ After completion, send back:
 output/gpu_once/run_YYYYMMDD_HHMMSS.zip
 ```
 
+## Strict Publishable Artifact Audit
+
+For a paper submission, do not use the one-shot GPU bundle as the final result set. A publishable FedQTrust result set must include completed E1-E9 runs, raw per-round/per-client metrics, all required paper figures and tables, statistics, environment metadata, and strict evidence for paper-only infrastructure.
+
+Run the strict suite entrypoint:
+
+```bash
+bash scripts/run_publishable_suite.sh
+```
+
+Then audit the output:
+
+```bash
+python -m fedqtrust audit-publication --strict-infra --output-dir output
+```
+
+The audit writes:
+
+```text
+output/summaries/publication_readiness_audit.md
+```
+
+It exits with code `0` only when the expected publishable artifact set is present. It exits with code `1` and lists blockers when required experiment files, figures, tables, statistics, Fabric evidence, liboqs evidence, or CUDA evidence are missing.
+
 ## Commands
 
 Download data:
@@ -267,6 +291,12 @@ Run the one-shot GPU validation:
 
 ```bash
 python -m fedqtrust run-gpu-once --download-data --device auto --output-dir output/gpu_once --rounds 3 --amp
+```
+
+Audit publication readiness:
+
+```bash
+python -m fedqtrust audit-publication --strict-infra --output-dir output
 ```
 
 Run all experiment manifests:

@@ -11,6 +11,7 @@ from fedqtrust.config import load_config
 from fedqtrust.data.datasets import ensure_all_datasets
 from fedqtrust.device import write_environment_report
 from fedqtrust.one_shot import OneShotConfig, run_one_shot
+from fedqtrust.publication import audit_publication_outputs, write_publication_audit
 from fedqtrust.smoke import run_smoke
 
 
@@ -147,6 +148,15 @@ def run_gpu_once(args: argparse.Namespace) -> int:
         os._exit(0)
 
 
+def audit_publication(args: argparse.Namespace) -> int:
+    report = write_publication_audit(args.output_dir, args.strict_infra)
+    publishable, issues = audit_publication_outputs(args.output_dir, args.strict_infra)
+    print(f"[AUDIT] Wrote {report}")
+    print(f"[AUDIT] Status: {'PUBLISHABLE_ARTIFACT_SET_PRESENT' if publishable else 'NOT_PUBLISHABLE'}")
+    print(f"[AUDIT] Issues: {len(issues)}")
+    return 0 if publishable else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="fedqtrust")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -174,6 +184,10 @@ def main(argv: list[str] | None = None) -> int:
     gpu_once.add_argument("--amp", action="store_true")
     gpu_once.add_argument("--require-cuda", action="store_true")
 
+    audit = sub.add_parser("audit-publication")
+    audit.add_argument("--output-dir", default="output")
+    audit.add_argument("--strict-infra", action="store_true")
+
     run = sub.add_parser("run")
     _common(run)
     run.add_argument("--experiment", required=True, choices=[f"E{i}" for i in range(1, 10)])
@@ -196,6 +210,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "run-gpu-once":
         return run_gpu_once(args)
+    if args.command == "audit-publication":
+        return audit_publication(args)
     if args.command == "generate-report":
         return generate_report(args)
     raise ValueError(args.command)
