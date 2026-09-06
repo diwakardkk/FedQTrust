@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -56,12 +57,47 @@ def _direct_download_if_needed(flag: str, root: Path) -> None:
         return
     url = info["url"]
     print(f"[DATA] Direct download fallback for {flag}", flush=True)
-    proc = subprocess.run(["curl", "-L", "--fail", "-o", str(path), url], capture_output=True, text=True, check=False)
-    if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f"curl failed for {url}")
-    if expected and _md5(path) != expected:
+    errors: list[str] = []
+    for attempt in range(1, 11):
+        resume = path.exists() and path.stat().st_size > 0
+        if resume:
+            print(f"[DATA] Resuming {path.name} attempt {attempt}/10 from {path.stat().st_size} bytes", flush=True)
+        else:
+            print(f"[DATA] Downloading {path.name} attempt {attempt}/10", flush=True)
+        cmd = [
+            "curl",
+            "-L",
+            "--fail",
+            "--retry",
+            "5",
+            "--retry-delay",
+            "10",
+            "--retry-all-errors",
+            "--connect-timeout",
+            "30",
+            "--speed-time",
+            "120",
+            "--speed-limit",
+            "1024",
+            "--silent",
+            "--show-error",
+            "-o",
+            str(path),
+            url,
+        ]
+        if resume:
+            cmd[1:1] = ["-C", "-"]
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if proc.returncode != 0:
+            errors.append(proc.stderr.strip() or proc.stdout.strip() or f"curl exited {proc.returncode}")
+            time.sleep(min(30, attempt * 3))
+            continue
+        if not expected or _md5(path) == expected:
+            return
+        errors.append(f"MD5 mismatch for {path.name}")
         path.unlink(missing_ok=True)
-        raise RuntimeError(f"MD5 mismatch for {path.name}")
+        time.sleep(min(30, attempt * 3))
+    raise RuntimeError(f"failed to download {path.name} after retries: " + " | ".join(errors[-3:]))
 
 
 def load_medmnist_dataset(flag: str, split: str, root: str | Path, download: bool):
