@@ -243,7 +243,7 @@ For a paper submission, do not use the one-shot GPU bundle as the final result s
 
 ## One Command for a GPU Collaborator
 
-After cloning the repository, the collaborator can run the strict full-suite entrypoint with one command:
+After cloning the repository, the collaborator can run the implemented GPU result workflow with one command:
 
 ```bash
 PYTORCH_CUDA=cu124 bash scripts/run_full_experiment_once.sh
@@ -255,9 +255,15 @@ Use `PYTORCH_CUDA=cu121` or another supported value if the server needs a differ
 PYTORCH_CUDA=cu121 bash scripts/run_full_experiment_once.sh
 ```
 
-This command creates `.venv`, installs dependencies, checks `nvidia-smi`, installs CUDA PyTorch, runs preflight, tests, smoke test, data download, partition preparation, E1-E9 execution, report generation, and publication audit.
+This command creates `.venv`, installs dependencies, checks `nvidia-smi`, installs CUDA PyTorch, downloads or validates the MedMNIST datasets, runs the implemented GPU experiment bundle, and creates a zip under:
 
-It is intentionally strict: if Fabric, liboqs, CUDA, or the full E1-E9 experiment engines are missing, it fails instead of creating misleading paper-looking results.
+```text
+output/gpu_once/run_YYYYMMDD_HHMMSS.zip
+```
+
+The collaborator should send back that zip file. This one-command wrapper is for collecting real GPU validation results from the currently implemented code. It does not run the not-yet-implemented full E1-E9 paper experiment engines.
+
+## Strict Publishable Suite
 
 Run the strict suite entrypoint:
 
