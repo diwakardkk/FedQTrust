@@ -257,9 +257,9 @@ The success marker is saved at:
 output/smoke_test_cpu/SMOKE_TEST_PASSED.txt
 ```
 
-## Full Publication Artifact Suite
+## Real Scientific Results Suite
 
-Use this fast CPU command to test that the full paper-output pipeline works and saves every required figure, table, statistic, experiment folder, summary, and zip bundle:
+Use this fast CPU command to test that the figure/table pipeline works with sample artifacts:
 
 ```bash
 bash scripts/run_publication_test_sample.sh
@@ -272,27 +272,29 @@ output/publication_test_sample/
 output/publication_test_sample.zip
 ```
 
-For the full GPU/server paper artifact run:
+For the GPU/server scientific result run, the command now trains implemented models first and then builds plots/tables by reading the saved real CSV metrics:
 
 ```bash
-PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper bash scripts/run_full_experiment_once.sh
+CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper ROUNDS=100 bash scripts/run_full_experiment_once.sh
 ```
 
-For a CPU-only full artifact run:
+For a CPU-only real training run:
 
 ```bash
-PYTORCH_CUDA=cpu DEVICE=cpu MODE=paper bash scripts/run_full_experiment_once.sh
+PYTORCH_CUDA=cpu DEVICE=cpu MODE=paper ROUNDS=100 STRICT_INFRA=false bash scripts/run_full_experiment_once.sh
 ```
 
-Direct CLI form:
+The command creates:
 
-```bash
-python -m fedqtrust publication-suite --mode paper --device cuda --output-dir output/publication_suite --download-data
+```text
+output/scientific_results/
+output/scientific_results.zip
+output/scientific_results/raw_training/<run_id>/
 ```
 
-The suite generates all required paper figures as both PDF and PNG, all required paper tables as CSV/MD/TEX, E1-E9 experiment directories, raw metrics, timing files, trust traces, statistics, summaries, and a zip bundle.
+Important: `publication-suite --mode paper` is disabled because it previously generated paper-looking placeholder metrics. Use the one-command runner above. It runs real training through `run-gpu-once`, then `real-results-suite` reads those saved metrics and creates the final plots, tables, statistics, summaries, checkpoints manifest, and zip bundle.
 
-`MODE=test` is for fast pipeline verification. Use `MODE=paper` for the serious full artifact run, then review the raw CSVs and audit report before manuscript submission.
+`MODE=test` remains only for fast pipeline verification and must not be used for manuscript claims.
 
 ## Known-Good 100-Round Training Script
 
@@ -316,10 +318,10 @@ For a paper submission, do not use the one-shot GPU bundle as the final result s
 
 ## One Command for a GPU Collaborator
 
-After cloning the repository, the collaborator can run the full publication artifact workflow with one command:
+After cloning the repository, the collaborator can run the real GPU result workflow with one command:
 
 ```bash
-PYTORCH_CUDA=cu124 bash scripts/run_full_experiment_once.sh
+CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper ROUNDS=100 bash scripts/run_full_experiment_once.sh
 ```
 
 Use `PYTORCH_CUDA=cu121` or another supported value if the server needs a different PyTorch CUDA wheel:
@@ -331,39 +333,41 @@ PYTORCH_CUDA=cu121 bash scripts/run_full_experiment_once.sh
 For a CPU-only machine, use:
 
 ```bash
-PYTORCH_CUDA=cpu DEVICE=cpu bash scripts/run_full_experiment_once.sh
+PYTORCH_CUDA=cpu DEVICE=cpu MODE=paper ROUNDS=100 STRICT_INFRA=false bash scripts/run_full_experiment_once.sh
 ```
 
-This command creates `.venv`, installs dependencies, installs CPU or CUDA PyTorch based on `PYTORCH_CUDA`, checks `nvidia-smi` only for GPU runs, runs tests and smoke checks, generates the publication artifact suite, audits the output, and creates:
+This command creates `.venv`, installs dependencies, installs CPU or CUDA PyTorch based on `PYTORCH_CUDA`, checks `nvidia-smi` only for GPU runs, runs tests and smoke checks, trains the implemented models on real MedMNIST data, reads the saved raw metrics, generates figures/tables/statistics, audits the output, and creates:
 
 ```text
-output/publication_suite/
-output/publication_suite.zip
+output/scientific_results/
+output/scientific_results.zip
 ```
 
-The collaborator should send back `output/publication_suite.zip`.
+The collaborator should send back `output/scientific_results.zip`.
+
+The generated `summaries/scientific_claims_supported.md` file is the paper-safety checklist. It lists exactly which claims are supported by the real output and which E1-E9 claims still require separate raw experiments.
 
 ## Results Suite With Readiness Audit
 
-This compatibility script runs the implemented GPU result bundle, writes E1-E9 manifest entries, generates summary files, and saves a publication-readiness audit report. The audit report may list remaining paper-readiness blockers, but it does not stop the result collection run.
+This script runs the implemented real training workflow, then builds the result bundle by reading the saved raw metrics. It does not write E1-E9 placeholder manifest entries.
 
 ```bash
 bash scripts/run_publishable_suite.sh
 ```
 
-To run only the strict audit manually:
+To run only the strict real-results audit manually:
 
 ```bash
-python -m fedqtrust audit-publication --strict-infra --output-dir output
+python -m fedqtrust audit-real-results --strict-infra --output-dir output/scientific_results
 ```
 
 The audit writes:
 
 ```text
-output/summaries/publication_readiness_audit.md
+output/scientific_results/summaries/real_results_audit.md
 ```
 
-The manual audit exits with code `0` only when the expected publishable artifact set is present. It exits with code `1` and lists blockers when required experiment files, figures, tables, statistics, Fabric evidence, liboqs evidence, or CUDA evidence are missing.
+The manual audit exits with code `0` only when real metric files, figures, tables, statistics, checkpoints, CUDA evidence, Fabric evidence, and liboqs evidence are present. It exits with code `1` and lists blockers otherwise.
 
 ## Commands
 

@@ -1,6 +1,8 @@
 main-v2.tex
 FedQTrust_results/
 FedQTrust_results.zip
+publication_suite/
+publication_suite.zip
 data/raw/*
 !data/raw/.gitkeep
 data/partitions/*

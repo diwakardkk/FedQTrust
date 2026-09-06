@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PYTORCH_CUDA="${PYTORCH_CUDA:-cu124}"
-OUTPUT_DIR="${OUTPUT_DIR:-output/publication_suite}"
+OUTPUT_DIR="${OUTPUT_DIR:-output/scientific_results}"
 MODE="${MODE:-paper}"
 ROUNDS="${ROUNDS:-}"
 SEEDS="${SEEDS:-}"

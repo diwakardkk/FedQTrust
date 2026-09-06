@@ -14,6 +14,7 @@ from fedqtrust.device import write_environment_report
 from fedqtrust.one_shot import OneShotConfig, run_one_shot
 from fedqtrust.publication import audit_publication_outputs, write_publication_audit
 from fedqtrust.publication_suite import PublicationSuiteConfig, run_publication_suite
+from fedqtrust.real_results import RealResultsConfig, audit_real_results_outputs, run_real_results_suite, write_real_results_audit
 from fedqtrust.smoke import run_smoke
 
 
@@ -159,6 +160,15 @@ def audit_publication(args: argparse.Namespace) -> int:
     return 0 if publishable else 1
 
 
+def audit_real_results(args: argparse.Namespace) -> int:
+    report = write_real_results_audit(args.output_dir, args.strict_infra)
+    ready, issues = audit_real_results_outputs(args.output_dir, args.strict_infra)
+    print(f"[AUDIT] Wrote {report}")
+    print(f"[AUDIT] Status: {'REAL_TRAINING_ARTIFACTS_PRESENT' if ready else 'NOT_READY'}")
+    print(f"[AUDIT] Issues: {len(issues)}")
+    return 0 if ready else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="fedqtrust")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -194,9 +204,19 @@ def main(argv: list[str] | None = None) -> int:
     suite.add_argument("--seeds", default=None)
     suite.add_argument("--download-data", action="store_true")
 
+    real_suite = sub.add_parser("real-results-suite")
+    real_suite.add_argument("--source-dir", default="output/scientific_results/raw_training")
+    real_suite.add_argument("--output-dir", default="output/scientific_results")
+    real_suite.add_argument("--device", default="auto")
+    real_suite.add_argument("--strict-infra", action="store_true")
+
     audit = sub.add_parser("audit-publication")
     audit.add_argument("--output-dir", default="output")
     audit.add_argument("--strict-infra", action="store_true")
+
+    real_audit = sub.add_parser("audit-real-results")
+    real_audit.add_argument("--output-dir", default="output/scientific_results")
+    real_audit.add_argument("--strict-infra", action="store_true")
 
     run = sub.add_parser("run")
     _common(run)
@@ -227,6 +247,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run-gpu-once":
         return run_gpu_once(args)
     if args.command == "publication-suite":
+        if args.mode == "paper":
+            raise RuntimeError(
+                "publication-suite --mode paper no longer generates paper-looking metrics. "
+                "Run the real pipeline with `MODE=paper bash scripts/run_full_experiment_once.sh`, "
+                "which trains models first and then reads the saved real metrics."
+            )
         seeds = None
         if args.seeds:
             seeds = tuple(int(item.strip()) for item in args.seeds.split(",") if item.strip())
@@ -240,8 +266,20 @@ def main(argv: list[str] | None = None) -> int:
         )
         run_publication_suite(cfg)
         return 0
+    if args.command == "real-results-suite":
+        run_real_results_suite(
+            RealResultsConfig(
+                source_dir=args.source_dir,
+                output_dir=args.output_dir,
+                device=args.device,
+                strict_infra=args.strict_infra,
+            )
+        )
+        return 0
     if args.command == "audit-publication":
         return audit_publication(args)
+    if args.command == "audit-real-results":
+        return audit_real_results(args)
     if args.command == "generate-report":
         return generate_report(args)
     raise ValueError(args.command)
