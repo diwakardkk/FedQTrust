@@ -237,6 +237,42 @@ After completion, send back:
 output/gpu_once/run_YYYYMMDD_HHMMSS.zip
 ```
 
+## CPU Smoke Test
+
+Use this on a CPU-only machine to verify the installation, datasets, model forward/backward paths, trust/QUBO logic, attacks, aggregation, plotting, and tables:
+
+```bash
+bash scripts/run_cpu_smoke.sh
+```
+
+Equivalent direct command:
+
+```bash
+python -m fedqtrust smoke-test --download-data --device cpu --output-dir output/smoke_test_cpu
+```
+
+The success marker is saved at:
+
+```text
+output/smoke_test_cpu/SMOKE_TEST_PASSED.txt
+```
+
+## Known-Good 100-Round Training Script
+
+The previously validated standalone training workflow is available from the repository root and saves a complete results bundle:
+
+```bash
+python run_training_final_correct.py --device cpu --rounds 100 --output-dir output/final_correct
+```
+
+For a quick CPU test:
+
+```bash
+python run_training_final_correct.py --device cpu --rounds 1 --max-samples 64 --datasets pneumoniamnist --output-dir output/final_correct_quick
+```
+
+The script saves `round_metrics.csv`, `final_metrics.csv`, `training_loss.png`, model checkpoints, metadata, a `DONE` file, and a zip bundle under `output/final_correct/`.
+
 ## Strict Publishable Artifact Audit
 
 For a paper submission, do not use the one-shot GPU bundle as the final result set. A publishable FedQTrust result set must include completed E1-E9 runs, raw per-round/per-client metrics, all required paper figures and tables, statistics, environment metadata, and strict evidence for paper-only infrastructure.
@@ -255,7 +291,13 @@ Use `PYTORCH_CUDA=cu121` or another supported value if the server needs a differ
 PYTORCH_CUDA=cu121 bash scripts/run_full_experiment_once.sh
 ```
 
-This command creates `.venv`, installs dependencies, checks `nvidia-smi`, installs CUDA PyTorch, downloads or validates the MedMNIST datasets, runs the implemented GPU experiment bundle, and creates a zip under:
+For a CPU-only machine, use:
+
+```bash
+PYTORCH_CUDA=cpu DEVICE=cpu bash scripts/run_full_experiment_once.sh
+```
+
+This command creates `.venv`, installs dependencies, installs CPU or CUDA PyTorch based on `PYTORCH_CUDA`, checks `nvidia-smi` only for GPU runs, downloads or validates the MedMNIST datasets, runs the implemented experiment bundle, and creates a zip under:
 
 ```text
 output/gpu_once/run_YYYYMMDD_HHMMSS.zip
