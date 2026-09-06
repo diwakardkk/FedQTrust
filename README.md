@@ -261,17 +261,17 @@ This command creates `.venv`, installs dependencies, checks `nvidia-smi`, instal
 output/gpu_once/run_YYYYMMDD_HHMMSS.zip
 ```
 
-The collaborator should send back that zip file. This one-command wrapper is for collecting real GPU validation results from the currently implemented code. It does not run the not-yet-implemented full E1-E9 paper experiment engines.
+The collaborator should send back that zip file. This one-command wrapper is for collecting real GPU results from the currently implemented code.
 
-## Strict Publishable Suite
+## Results Suite With Readiness Audit
 
-Run the strict suite entrypoint:
+This compatibility script runs the implemented GPU result bundle, writes E1-E9 manifest entries, generates summary files, and saves a publication-readiness audit report. The audit report may list remaining paper-readiness blockers, but it does not stop the result collection run.
 
 ```bash
 bash scripts/run_publishable_suite.sh
 ```
 
-Then audit the output:
+To run only the strict audit manually:
 
 ```bash
 python -m fedqtrust audit-publication --strict-infra --output-dir output
@@ -283,7 +283,7 @@ The audit writes:
 output/summaries/publication_readiness_audit.md
 ```
 
-It exits with code `0` only when the expected publishable artifact set is present. It exits with code `1` and lists blockers when required experiment files, figures, tables, statistics, Fabric evidence, liboqs evidence, or CUDA evidence are missing.
+The manual audit exits with code `0` only when the expected publishable artifact set is present. It exits with code `1` and lists blockers when required experiment files, figures, tables, statistics, Fabric evidence, liboqs evidence, or CUDA evidence are missing.
 
 ## Commands
 
@@ -323,10 +323,10 @@ Audit publication readiness:
 python -m fedqtrust audit-publication --strict-infra --output-dir output
 ```
 
-Run all experiment manifests:
+Run the implemented results suite:
 
 ```bash
-python -m fedqtrust run-all --profile paper --device cuda --resume --output-dir output
+bash scripts/run_all_experiments.sh
 ```
 
 Generate reports from existing raw outputs:

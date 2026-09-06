@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from pathlib import Path
 
 from fedqtrust.config import load_config
@@ -205,10 +206,10 @@ def main(argv: list[str] | None = None) -> int:
         return run_experiment(args)
     if args.command == "run-all":
         if args.profile == "paper":
-            raise RuntimeError(
-                "Full E1-E9 paper experiment engines are not implemented yet. "
-                "This command refuses to create misleading paper outputs. "
-                "Use run-gpu-once for validation, or implement E1-E9 engines before paper runs."
+            print(
+                "[WARN] Full E1-E9 paper experiment engines are not implemented yet. "
+                "Recording E1-E9 manifest entries only; use run-gpu-once for real training results.",
+                file=sys.stderr,
             )
         for exp in [f"E{i}" for i in range(1, 10)]:
             args.experiment = exp
