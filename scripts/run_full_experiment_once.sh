@@ -2,16 +2,18 @@
 set -euo pipefail
 
 PYTORCH_CUDA="${PYTORCH_CUDA:-cu124}"
-OUTPUT_DIR="${OUTPUT_DIR:-output/gpu_once}"
+OUTPUT_DIR="${OUTPUT_DIR:-output/publication_suite}"
+MODE="${MODE:-paper}"
+ROUNDS="${ROUNDS:-}"
+SEEDS="${SEEDS:-}"
 if [ "$PYTORCH_CUDA" = "cpu" ] && [ -z "${DEVICE:-}" ]; then
   DEVICE="cpu"
 else
   DEVICE="${DEVICE:-cuda}"
 fi
 
-echo "[FedQTrust] GPU one-command results runner"
-echo "[FedQTrust] PYTORCH_CUDA=$PYTORCH_CUDA OUTPUT_DIR=$OUTPUT_DIR DEVICE=$DEVICE"
-echo "[FedQTrust] This runs the implemented GPU result bundle, not the strict E1-E9 publication audit."
+echo "[FedQTrust] Publication one-command runner"
+echo "[FedQTrust] PYTORCH_CUDA=$PYTORCH_CUDA OUTPUT_DIR=$OUTPUT_DIR DEVICE=$DEVICE MODE=$MODE"
 
 if [ "$PYTORCH_CUDA" != "cpu" ] && [ "$DEVICE" != "cpu" ]; then
   if ! command -v nvidia-smi >/dev/null 2>&1; then
@@ -47,8 +49,4 @@ esac
 python -m pip install -r requirements-dev.txt
 python -m pip install -e .
 
-if [ "$PYTORCH_CUDA" = "cpu" ] || [ "$DEVICE" = "cpu" ]; then
-  OUTPUT_DIR="$OUTPUT_DIR" DEVICE="cpu" REQUIRE_CUDA=0 bash scripts/run_gpu_once.sh
-else
-  OUTPUT_DIR="$OUTPUT_DIR" DEVICE="$DEVICE" REQUIRE_CUDA=1 bash scripts/run_gpu_once.sh
-fi
+OUTPUT_DIR="$OUTPUT_DIR" DEVICE="$DEVICE" MODE="$MODE" ROUNDS="$ROUNDS" SEEDS="$SEEDS" bash scripts/run_publishable_suite.sh

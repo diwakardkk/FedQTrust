@@ -3,29 +3,39 @@ set -euo pipefail
 
 OUTPUT_DIR="${OUTPUT_DIR:-output}"
 DEVICE="${DEVICE:-cuda}"
+MODE="${MODE:-paper}"
+ROUNDS="${ROUNDS:-}"
+SEEDS="${SEEDS:-}"
 
-echo "[1/7] Environment preflight"
-python -m fedqtrust preflight --profile phase2 --device "$DEVICE" --output-dir "$OUTPUT_DIR"
+echo "[FedQTrust] Publication artifact suite"
+echo "[FedQTrust] OUTPUT_DIR=$OUTPUT_DIR DEVICE=$DEVICE MODE=$MODE"
 
-echo "[2/7] Unit tests"
+echo "[1/4] Unit tests"
 python -m pytest -q
 
-echo "[3/7] Smoke test"
+echo "[2/4] Smoke test"
 python -m fedqtrust smoke-test --download-data --device "$DEVICE" --output-dir "$OUTPUT_DIR/smoke_test"
 
-echo "[4/7] Download data"
-python -m fedqtrust download-data --profile paper --device "$DEVICE" --output-dir "$OUTPUT_DIR"
+echo "[3/4] Generate publication figures, tables, statistics, and experiment artifacts"
+args=(
+  -m fedqtrust publication-suite
+  --mode "$MODE"
+  --device "$DEVICE"
+  --output-dir "$OUTPUT_DIR"
+  --download-data
+)
 
-echo "[5/7] Prepare partitions"
-python -m fedqtrust prepare-data --profile paper --device "$DEVICE" --output-dir "$OUTPUT_DIR"
+if [ -n "$ROUNDS" ]; then
+  args+=(--rounds "$ROUNDS")
+fi
 
-echo "[6/7] Run implemented GPU result bundle"
-OUTPUT_DIR="$OUTPUT_DIR/gpu_once" DEVICE="$DEVICE" bash scripts/run_gpu_once.sh
+if [ -n "$SEEDS" ]; then
+  args+=(--seeds "$SEEDS")
+fi
 
-echo "[7/7] Generate report and non-blocking publication audit"
-python -m fedqtrust generate-report --profile paper --device "$DEVICE" --output-dir "$OUTPUT_DIR"
-python -m fedqtrust run-all --profile paper --device "$DEVICE" --resume --output-dir "$OUTPUT_DIR"
-python -m fedqtrust audit-publication --strict-infra --output-dir "$OUTPUT_DIR" || true
+python "${args[@]}"
 
-echo "[DONE] Saved GPU result bundle under $OUTPUT_DIR/gpu_once/"
-echo "[DONE] Publication audit, if not passing, is saved as a readiness report and does not block result collection."
+echo "[4/4] Audit publication artifact completeness"
+python -m fedqtrust audit-publication --output-dir "$OUTPUT_DIR"
+
+echo "[DONE] Saved publication artifact bundle under $OUTPUT_DIR"

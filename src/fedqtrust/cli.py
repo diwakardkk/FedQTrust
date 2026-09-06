@@ -13,6 +13,7 @@ from fedqtrust.data.datasets import ensure_all_datasets
 from fedqtrust.device import write_environment_report
 from fedqtrust.one_shot import OneShotConfig, run_one_shot
 from fedqtrust.publication import audit_publication_outputs, write_publication_audit
+from fedqtrust.publication_suite import PublicationSuiteConfig, run_publication_suite
 from fedqtrust.smoke import run_smoke
 
 
@@ -185,6 +186,14 @@ def main(argv: list[str] | None = None) -> int:
     gpu_once.add_argument("--amp", action="store_true")
     gpu_once.add_argument("--require-cuda", action="store_true")
 
+    suite = sub.add_parser("publication-suite")
+    suite.add_argument("--output-dir", default="output/publication_suite")
+    suite.add_argument("--mode", default="test", choices=["test", "paper"])
+    suite.add_argument("--device", default="cpu")
+    suite.add_argument("--rounds", type=int, default=None)
+    suite.add_argument("--seeds", default=None)
+    suite.add_argument("--download-data", action="store_true")
+
     audit = sub.add_parser("audit-publication")
     audit.add_argument("--output-dir", default="output")
     audit.add_argument("--strict-infra", action="store_true")
@@ -217,6 +226,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "run-gpu-once":
         return run_gpu_once(args)
+    if args.command == "publication-suite":
+        seeds = None
+        if args.seeds:
+            seeds = tuple(int(item.strip()) for item in args.seeds.split(",") if item.strip())
+        cfg = PublicationSuiteConfig(
+            output_dir=args.output_dir,
+            mode=args.mode,
+            device=args.device,
+            rounds=args.rounds,
+            seeds=seeds,
+            download_data=args.download_data,
+        )
+        run_publication_suite(cfg)
+        return 0
     if args.command == "audit-publication":
         return audit_publication(args)
     if args.command == "generate-report":

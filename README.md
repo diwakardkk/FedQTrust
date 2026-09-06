@@ -257,6 +257,43 @@ The success marker is saved at:
 output/smoke_test_cpu/SMOKE_TEST_PASSED.txt
 ```
 
+## Full Publication Artifact Suite
+
+Use this fast CPU command to test that the full paper-output pipeline works and saves every required figure, table, statistic, experiment folder, summary, and zip bundle:
+
+```bash
+bash scripts/run_publication_test_sample.sh
+```
+
+It writes:
+
+```text
+output/publication_test_sample/
+output/publication_test_sample.zip
+```
+
+For the full GPU/server paper artifact run:
+
+```bash
+PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper bash scripts/run_full_experiment_once.sh
+```
+
+For a CPU-only full artifact run:
+
+```bash
+PYTORCH_CUDA=cpu DEVICE=cpu MODE=paper bash scripts/run_full_experiment_once.sh
+```
+
+Direct CLI form:
+
+```bash
+python -m fedqtrust publication-suite --mode paper --device cuda --output-dir output/publication_suite --download-data
+```
+
+The suite generates all required paper figures as both PDF and PNG, all required paper tables as CSV/MD/TEX, E1-E9 experiment directories, raw metrics, timing files, trust traces, statistics, summaries, and a zip bundle.
+
+`MODE=test` is for fast pipeline verification. Use `MODE=paper` for the serious full artifact run, then review the raw CSVs and audit report before manuscript submission.
+
 ## Known-Good 100-Round Training Script
 
 The previously validated standalone training workflow is available from the repository root and saves a complete results bundle:
@@ -279,7 +316,7 @@ For a paper submission, do not use the one-shot GPU bundle as the final result s
 
 ## One Command for a GPU Collaborator
 
-After cloning the repository, the collaborator can run the implemented GPU result workflow with one command:
+After cloning the repository, the collaborator can run the full publication artifact workflow with one command:
 
 ```bash
 PYTORCH_CUDA=cu124 bash scripts/run_full_experiment_once.sh
@@ -297,13 +334,14 @@ For a CPU-only machine, use:
 PYTORCH_CUDA=cpu DEVICE=cpu bash scripts/run_full_experiment_once.sh
 ```
 
-This command creates `.venv`, installs dependencies, installs CPU or CUDA PyTorch based on `PYTORCH_CUDA`, checks `nvidia-smi` only for GPU runs, downloads or validates the MedMNIST datasets, runs the implemented experiment bundle, and creates a zip under:
+This command creates `.venv`, installs dependencies, installs CPU or CUDA PyTorch based on `PYTORCH_CUDA`, checks `nvidia-smi` only for GPU runs, runs tests and smoke checks, generates the publication artifact suite, audits the output, and creates:
 
 ```text
-output/gpu_once/run_YYYYMMDD_HHMMSS.zip
+output/publication_suite/
+output/publication_suite.zip
 ```
 
-The collaborator should send back that zip file. This one-command wrapper is for collecting real GPU results from the currently implemented code.
+The collaborator should send back `output/publication_suite.zip`.
 
 ## Results Suite With Readiness Audit
 
