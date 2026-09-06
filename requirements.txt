@@ -4,6 +4,7 @@ scipy
 scikit-learn
 matplotlib
 pyyaml
+tabulate
 torch
 torchvision
 medmnist
