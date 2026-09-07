@@ -22,7 +22,7 @@ def trust_weighted_delta(deltas: list[StateDict], sample_counts: list[int], trus
     for key in keys:
         acc = torch.zeros_like(deltas[0][key], dtype=deltas[0][key].dtype)
         for delta, n, tau in zip(deltas, sample_counts, trust_scores):
-            acc = acc + delta[key] * (float(n) * float(tau) / denom)
+            update = delta[key].to(device=acc.device, dtype=acc.dtype)
+            acc = acc + update * (float(n) * float(tau) / denom)
         out[key] = acc
     return out
-

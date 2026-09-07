@@ -19,7 +19,6 @@ def vector_to_delta(vector: np.ndarray, template: StateDict) -> StateDict:
     tensor = torch.from_numpy(vector.astype("float32"))
     for key, value in sorted(template.items()):
         size = value.numel()
-        out[key] = tensor[offset : offset + size].reshape(value.shape).to(dtype=value.dtype)
+        out[key] = tensor[offset : offset + size].reshape(value.shape).to(device=value.device, dtype=value.dtype)
         offset += size
     return out
-
