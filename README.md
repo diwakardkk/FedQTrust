@@ -379,6 +379,19 @@ To include E1 in the one-command GPU result bundle:
 CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_E1=true ROUNDS=100 E1_ROUNDS=100 OUTPUT_DIR=output/scientific_results_e1 bash scripts/run_full_experiment_once.sh
 ```
 
+To run the complete real E1-E9 paper workflow in one command:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_ALL_REAL=true ROUNDS=200 E3_ROUNDS=200 OUTPUT_DIR=output/paper_real bash scripts/run_full_experiment_once.sh
+```
+
+This writes the final bundle to:
+
+```text
+output/paper_real/
+output/paper_real.zip
+```
+
 For a quick E1 smoke check only:
 
 ```bash

@@ -13,6 +13,7 @@ from fedqtrust.data.datasets import ensure_all_datasets
 from fedqtrust.device import write_environment_report
 from fedqtrust.e1_real import E1RealConfig, run_e1_real
 from fedqtrust.one_shot import OneShotConfig, run_one_shot
+from fedqtrust.paper_real import RealPaperConfig, run_real_paper
 from fedqtrust.publication import audit_publication_outputs, write_publication_audit
 from fedqtrust.publication_suite import PublicationSuiteConfig, run_publication_suite
 from fedqtrust.real_results import RealResultsConfig, audit_real_results_outputs, run_real_results_suite, write_real_results_audit
@@ -242,6 +243,29 @@ def main(argv: list[str] | None = None) -> int:
     e1.add_argument("--require-cuda", action="store_true")
     e1.add_argument("--no-save-checkpoints", action="store_true")
 
+    paper_real = sub.add_parser("run-paper-real")
+    paper_real.add_argument("--output-dir", default="output/paper_real")
+    paper_real.add_argument("--device", default="auto")
+    paper_real.add_argument("--rounds", type=int, default=100)
+    paper_real.add_argument("--e3-rounds", type=int, default=200)
+    paper_real.add_argument("--seeds", default="42,123,456,789,999")
+    paper_real.add_argument("--datasets", default="pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist")
+    paper_real.add_argument("--methods", default="FedAvg,FedProx,FedQCNN,Krum,FLTrust,PQS-BFL,SecEdge-MC,FedQTrust")
+    paper_real.add_argument("--attacks", default="benign,label_flip,sign_flip,gaussian,lie,free_riding,combined")
+    paper_real.add_argument("--clients", type=int, default=10)
+    paper_real.add_argument("--clients-per-round", type=int, default=5)
+    paper_real.add_argument("--batch-size", type=int, default=128)
+    paper_real.add_argument("--learning-rate", type=float, default=0.001)
+    paper_real.add_argument("--weight-decay", type=float, default=1e-4)
+    paper_real.add_argument("--num-workers", type=int, default=4)
+    paper_real.add_argument("--max-train-samples", type=int, default=None)
+    paper_real.add_argument("--max-eval-samples", type=int, default=None)
+    paper_real.add_argument("--download-data", action="store_true")
+    paper_real.add_argument("--amp", action="store_true")
+    paper_real.add_argument("--require-cuda", action="store_true")
+    paper_real.add_argument("--skip-e1", action="store_true")
+    paper_real.add_argument("--skip-sweeps", action="store_true")
+
     run = sub.add_parser("run")
     _common(run)
     run.add_argument("--experiment", required=True, choices=[f"E{i}" for i in range(1, 10)])
@@ -333,6 +357,44 @@ def main(argv: list[str] | None = None) -> int:
         )
         try:
             run_e1_real(cfg)
+        except Exception:
+            traceback.print_exc()
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(1)
+        else:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(0)
+    if args.command == "run-paper-real":
+        import os
+        import traceback
+
+        cfg = RealPaperConfig(
+            output_dir=args.output_dir,
+            device=args.device,
+            rounds=args.rounds,
+            e3_rounds=args.e3_rounds,
+            seeds=tuple(int(item.strip()) for item in args.seeds.split(",") if item.strip()),
+            datasets=tuple(item.strip().lower() for item in args.datasets.split(",") if item.strip()),
+            methods=tuple(item.strip() for item in args.methods.split(",") if item.strip()),
+            attacks=tuple(item.strip() for item in args.attacks.split(",") if item.strip()),
+            clients=args.clients,
+            clients_per_round=args.clients_per_round,
+            batch_size=args.batch_size,
+            learning_rate=args.learning_rate,
+            weight_decay=args.weight_decay,
+            num_workers=args.num_workers,
+            max_train_samples=args.max_train_samples,
+            max_eval_samples=args.max_eval_samples,
+            download_data=args.download_data,
+            amp=args.amp,
+            require_cuda=args.require_cuda,
+            run_e1=not args.skip_e1,
+            run_sweeps=not args.skip_sweeps,
+        )
+        try:
+            run_real_paper(cfg)
         except Exception:
             traceback.print_exc()
             sys.stdout.flush()

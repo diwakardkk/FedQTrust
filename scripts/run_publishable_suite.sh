@@ -17,6 +17,7 @@ MAX_EVAL_SAMPLES="${MAX_EVAL_SAMPLES:-}"
 SEED="${SEED:-42}"
 STRICT_INFRA="${STRICT_INFRA:-true}"
 RUN_E1="${RUN_E1:-false}"
+RUN_ALL_REAL="${RUN_ALL_REAL:-false}"
 E1_ROUNDS="${E1_ROUNDS:-${ROUNDS:-100}}"
 E1_SEEDS="${E1_SEEDS:-42,123,456,789,999}"
 E1_DATASETS="${E1_DATASETS:-pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist}"
@@ -38,6 +39,41 @@ echo "[2/5] Smoke test"
 python -m fedqtrust smoke-test --download-data --device "$DEVICE" --output-dir "$OUTPUT_DIR/smoke_test"
 
 if [ "$MODE" = "paper" ]; then
+  if [ "$RUN_ALL_REAL" = "true" ]; then
+    PAPER_ROUNDS="${ROUNDS:-100}"
+    echo "[3/3] Run complete real paper E1-E9 workflow"
+    paper_args=(
+      -m fedqtrust run-paper-real
+      --download-data
+      --device "$DEVICE"
+      --output-dir "$OUTPUT_DIR"
+      --rounds "$PAPER_ROUNDS"
+      --e3-rounds "${E3_ROUNDS:-200}"
+      --seeds "$E1_SEEDS"
+      --datasets "$E1_DATASETS"
+      --methods "$E1_METHODS"
+      --attacks "$E1_ATTACKS"
+      --clients "$E1_CLIENTS"
+      --clients-per-round "$E1_CLIENTS_PER_ROUND"
+      --batch-size "$BATCH_SIZE"
+      --learning-rate "$LEARNING_RATE"
+      --weight-decay "$WEIGHT_DECAY"
+      --num-workers "$NUM_WORKERS"
+    )
+    if [ -n "$E1_MAX_TRAIN_SAMPLES" ]; then
+      paper_args+=(--max-train-samples "$E1_MAX_TRAIN_SAMPLES")
+    fi
+    if [ -n "$E1_MAX_EVAL_SAMPLES" ]; then
+      paper_args+=(--max-eval-samples "$E1_MAX_EVAL_SAMPLES")
+    fi
+    if [ "$DEVICE" != "cpu" ]; then
+      paper_args+=(--amp --require-cuda)
+    fi
+    python "${paper_args[@]}"
+    echo "[DONE] Saved complete real paper bundle under $OUTPUT_DIR"
+    exit 0
+  fi
+
   TRAIN_ROUNDS="${ROUNDS:-100}"
   RAW_DIR="$OUTPUT_DIR/raw_training"
   echo "[3/5] Run real training and save raw metrics"

@@ -62,6 +62,10 @@ class E1RealConfig:
     clients: int = 10
     clients_per_round: int = 5
     malicious_fraction: float = 0.3
+    trust_alpha: float = 0.4
+    trust_beta: float = 0.3
+    trust_gamma: float = 0.3
+    trust_theta: float = 0.4
     local_epochs: int = 1
     batch_size: int = 128
     learning_rate: float = 0.001
@@ -135,9 +139,9 @@ def run_e1_real(config: E1RealConfig) -> Path:
                             "total_time_s": elapsed,
                         }
                     )
-                    round_rows.extend({**row, "run_id": run_id, "display": spec.display} for row in result["round_rows"])
-                    client_rows.extend({**row, "run_id": run_id, "display": spec.display} for row in result["client_rows"])
-                    timing_rows.extend({**row, "run_id": run_id, "display": spec.display} for row in result["timing_rows"])
+                    round_rows.extend({**row, "run_id": run_id, "dataset": dataset_key, "display": spec.display} for row in result["round_rows"])
+                    client_rows.extend({**row, "run_id": run_id, "dataset": dataset_key, "display": spec.display} for row in result["client_rows"])
+                    timing_rows.extend({**row, "run_id": run_id, "dataset": dataset_key, "display": spec.display} for row in result["timing_rows"])
                     if config.save_checkpoints:
                         torch.save(result["state_dict"], out / "checkpoints" / f"{run_id}.pt")
                     manifest_rows.append(
@@ -183,7 +187,7 @@ def _run_condition(
 ) -> dict[str, object]:
     model = _build_model(method, num_classes).to(device)
     global_state = clone_state(model.state_dict())
-    trust = TrustManager(config.clients)
+    trust = TrustManager(config.clients, alpha=config.trust_alpha, beta=config.trust_beta, gamma=config.trust_gamma)
     malicious = _malicious_clients(config.clients, config.malicious_fraction, attack)
     round_rows = []
     client_rows = []
@@ -269,7 +273,7 @@ def _run_condition(
                     "consistency": consistency,
                     "client_loss": loss,
                     "selected": True,
-                    "predicted_malicious": trust.trust.get(client_id, 0.5) < 0.4,
+                    "predicted_malicious": trust.trust.get(client_id, 0.5) < config.trust_theta,
                 }
             )
         timing_rows.append({"experiment": "E1", "seed": seed, "method": method, "attack": attack, "round": rnd, "round_time_s": elapsed})
@@ -281,7 +285,7 @@ def _run_condition(
 
 
 def _build_model(method: str, num_classes: int) -> nn.Module:
-    if method in {"FedQCNN", "FedQTrust"}:
+    if method in {"FedQCNN", "FedQTrust", "No-QUBO", "No-Trust", "No-Blockchain", "No-PQC"}:
         return FedQCNN(num_classes)
     return ClassicalCNN(num_classes)
 
@@ -380,7 +384,7 @@ def _select_and_weight_updates(
         scores = fltrust_scores(vectors, reference)
         weights = [float(max(score, 1e-6)) for score in scores]
         return deltas, sample_counts, weights
-    if method in {"FedQTrust", "SecEdge-MC", "PQS-BFL"}:
+    if method in {"FedQTrust", "SecEdge-MC", "PQS-BFL", "No-QUBO", "No-Blockchain", "No-PQC", "No-Quantum"}:
         scores = []
         for idx, client_id in enumerate(client_ids):
             consistency = trust.update_consistency(client_id, vectors[idx], reference)
@@ -388,8 +392,8 @@ def _select_and_weight_updates(
             tau = trust.update_round(client_id, validation_proxy, consistency)
             distance = float(np.linalg.norm(vectors[idx] - reference))
             scores.append((idx, tau / (1.0 + distance)))
-        if method == "FedQTrust":
-            keep = [idx for idx, _ in scores if trust.trust.get(client_ids[idx], 0.0) >= 0.4]
+        if method in {"FedQTrust", "No-Blockchain", "No-PQC", "No-Quantum"}:
+            keep = [idx for idx, _ in scores if trust.trust.get(client_ids[idx], 0.0) >= config.trust_theta]
             if not keep:
                 keep = [idx for idx, _ in sorted(scores, key=lambda item: item[1], reverse=True)[: max(1, len(scores) // 2)]]
             return [deltas[i] for i in keep], [sample_counts[i] for i in keep], [trust.trust.get(client_ids[i], 0.5) for i in keep]
@@ -569,7 +573,13 @@ def _partition_indices(indices: list[int], clients: int, seed: int) -> list[list
     rng = np.random.default_rng(seed)
     shuffled = np.array(indices, dtype=int)
     rng.shuffle(shuffled)
-    return [part.astype(int).tolist() for part in np.array_split(shuffled, clients)]
+    if shuffled.size == 0:
+        raise ValueError("cannot partition an empty training index set")
+    parts = [part.astype(int).tolist() for part in np.array_split(shuffled, clients)]
+    for idx, part in enumerate(parts):
+        if not part:
+            parts[idx] = [int(shuffled[idx % len(shuffled)])]
+    return parts
 
 
 def _select_clients(total: int, k: int, seed: int, rnd: int) -> list[int]:
@@ -664,6 +674,7 @@ def _validate_config(config: E1RealConfig) -> None:
     known_datasets = {spec.key for spec in DATASET_SPECS}
     unknown_datasets = set(config.datasets) - known_datasets
     unknown_methods = set(config.methods) - set(E1_METHODS)
+    unknown_methods -= {"No-QUBO", "No-Trust", "No-Blockchain", "No-PQC", "No-Quantum"}
     unknown_attacks = set(config.attacks) - set(E1_ATTACKS)
     if unknown_datasets:
         raise ValueError(f"unknown E1 datasets: {sorted(unknown_datasets)}")
