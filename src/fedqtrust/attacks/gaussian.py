@@ -8,6 +8,9 @@ from fedqtrust.fl.state import StateDict
 
 
 def gaussian_noise(delta: StateDict, sigma: float, seed: int) -> StateDict:
-    gen = torch.Generator(device="cpu").manual_seed(seed)
-    return {k: v.detach().clone() + torch.randn(v.shape, generator=gen, dtype=v.dtype) * sigma for k, v in delta.items()}
-
+    out: StateDict = {}
+    for offset, (key, value) in enumerate(delta.items()):
+        gen = torch.Generator(device=value.device).manual_seed(seed + offset)
+        noise = torch.randn(value.shape, generator=gen, dtype=value.dtype, device=value.device) * sigma
+        out[key] = value.detach().clone() + noise
+    return out

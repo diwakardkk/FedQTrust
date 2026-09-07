@@ -242,6 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     e1.add_argument("--amp", action="store_true")
     e1.add_argument("--require-cuda", action="store_true")
     e1.add_argument("--no-save-checkpoints", action="store_true")
+    e1.add_argument("--no-resume", action="store_true")
 
     paper_real = sub.add_parser("run-paper-real")
     paper_real.add_argument("--output-dir", default="output/paper_real")
@@ -354,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
             amp=args.amp,
             require_cuda=args.require_cuda,
             save_checkpoints=not args.no_save_checkpoints,
+            resume=not args.no_resume,
         )
         try:
             run_e1_real(cfg)

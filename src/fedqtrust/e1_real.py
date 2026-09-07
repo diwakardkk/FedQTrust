@@ -77,6 +77,7 @@ class E1RealConfig:
     amp: bool = False
     require_cuda: bool = False
     save_checkpoints: bool = True
+    resume: bool = True
 
 
 def run_e1_real(config: E1RealConfig) -> Path:
@@ -101,6 +102,9 @@ def run_e1_real(config: E1RealConfig) -> Path:
     client_rows: list[dict[str, object]] = []
     timing_rows: list[dict[str, object]] = []
     manifest_rows: list[dict[str, object]] = []
+    completed = _completed_run_ids(out) if config.resume else set()
+    if config.resume and completed:
+        print(f"[E1] Resume enabled: skipping {len(completed)} completed conditions", flush=True)
     specs = {spec.key: spec for spec in DATASET_SPECS}
 
     for seed in config.seeds:
@@ -117,6 +121,9 @@ def run_e1_real(config: E1RealConfig) -> Path:
             for method in config.methods:
                 for attack in config.attacks:
                     run_id = f"E1_{dataset_key}_{method}_{attack}_seed_{seed}"
+                    if run_id in completed:
+                        print(f"[E1] SKIP completed {run_id}", flush=True)
+                        continue
                     print(f"[E1] {run_id}: rounds={config.rounds} clients={config.clients} k={config.clients_per_round}", flush=True)
                     start = time.perf_counter()
                     result = _run_condition(config, spec.classes, method, attack, seed, partitions, train_ds, test_loader, device)
@@ -157,16 +164,29 @@ def run_e1_real(config: E1RealConfig) -> Path:
                             "elapsed_s": elapsed,
                         }
                     )
+                    _append_csv(out / "raw_metrics" / "e1_final_metrics.csv", final_rows[-1])
+                    for row in result["round_rows"]:
+                        _append_csv(out / "raw_metrics" / "e1_round_metrics.csv", {**row, "run_id": run_id, "dataset": dataset_key, "display": spec.display})
+                    for row in result["client_rows"]:
+                        _append_csv(out / "raw_metrics" / "e1_client_metrics.csv", {**row, "run_id": run_id, "dataset": dataset_key, "display": spec.display})
+                    for row in result["timing_rows"]:
+                        _append_csv(out / "raw_metrics" / "e1_timing.csv", {**row, "run_id": run_id, "dataset": dataset_key, "display": spec.display})
+                    _append_csv(out / "manifest.csv", manifest_rows[-1])
                     _append_event(out / "events.jsonl", {"event": "condition_done", "run_id": run_id, "elapsed_s": elapsed})
 
-    _write_csv(out / "raw_metrics" / "e1_final_metrics.csv", final_rows)
-    _write_csv(out / "raw_metrics" / "e1_round_metrics.csv", round_rows)
-    _write_csv(out / "raw_metrics" / "e1_client_metrics.csv", client_rows)
-    _write_csv(out / "raw_metrics" / "e1_timing.csv", timing_rows)
-    _write_csv(out / "manifest.csv", manifest_rows)
-    _write_e1_tables(out, pd.DataFrame(final_rows), pd.DataFrame(client_rows), pd.DataFrame(timing_rows))
-    _write_e1_figures(out, pd.DataFrame(final_rows), pd.DataFrame(round_rows), pd.DataFrame(client_rows))
-    _write_e1_summary(out, config, pd.DataFrame(final_rows), env)
+    final_df = _read_csv_if_exists(out / "raw_metrics" / "e1_final_metrics.csv", final_rows)
+    round_df = _read_csv_if_exists(out / "raw_metrics" / "e1_round_metrics.csv", round_rows)
+    client_df = _read_csv_if_exists(out / "raw_metrics" / "e1_client_metrics.csv", client_rows)
+    timing_df = _read_csv_if_exists(out / "raw_metrics" / "e1_timing.csv", timing_rows)
+    manifest_df = _read_csv_if_exists(out / "manifest.csv", manifest_rows)
+    final_df.drop_duplicates(subset=["run_id"], keep="last").to_csv(out / "raw_metrics" / "e1_final_metrics.csv", index=False)
+    round_df.drop_duplicates(subset=["run_id", "round"], keep="last").to_csv(out / "raw_metrics" / "e1_round_metrics.csv", index=False)
+    client_df.drop_duplicates(subset=["run_id", "round", "client_id"], keep="last").to_csv(out / "raw_metrics" / "e1_client_metrics.csv", index=False)
+    timing_df.drop_duplicates(subset=["run_id", "round"], keep="last").to_csv(out / "raw_metrics" / "e1_timing.csv", index=False)
+    manifest_df.drop_duplicates(subset=["run_id"], keep="last").to_csv(out / "manifest.csv", index=False)
+    _write_e1_tables(out, final_df, client_df, timing_df)
+    _write_e1_figures(out, final_df, round_df, client_df)
+    _write_e1_summary(out, config, final_df, env)
     (out / "DONE").write_text(datetime.now(timezone.utc).isoformat() + "\n", encoding="utf-8")
     archive = shutil.make_archive(str(out), "zip", out)
     print(f"[DONE] E1 real attack-resilience results: {out}", flush=True)
@@ -461,7 +481,9 @@ def _write_e1_figures(out: Path, final: pd.DataFrame, rounds: pd.DataFrame, clie
     ax.set_xlabel("Attack")
     ax.set_ylabel("Test accuracy")
     ax.set_ylim(0, 1)
-    ax.legend(ncol=2, frameon=True)
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(handles, labels, ncol=2, frameon=True)
     _save(fig, fig_dir / "Fig_E1_real_attack_resilience")
 
     fig, ax = plt.subplots(figsize=(13, 7))
@@ -474,7 +496,9 @@ def _write_e1_figures(out: Path, final: pd.DataFrame, rounds: pd.DataFrame, clie
     ax.set_xlabel("Round")
     ax.set_ylabel("Test accuracy")
     ax.set_ylim(0, 1)
-    ax.legend(ncol=2, frameon=True)
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(handles, labels, ncol=2, frameon=True)
     _save(fig, fig_dir / "Fig_E1_real_convergence")
 
     fig, ax = plt.subplots(figsize=(12, 7))
@@ -636,6 +660,35 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _append_csv(path: Path, row: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    exists = path.exists() and path.stat().st_size > 0
+    with path.open("a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(row))
+        if not exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def _read_csv_if_exists(path: Path, fallback_rows: list[dict[str, object]]) -> pd.DataFrame:
+    if path.exists() and path.stat().st_size > 0:
+        return pd.read_csv(path)
+    return pd.DataFrame(fallback_rows)
+
+
+def _completed_run_ids(out: Path) -> set[str]:
+    manifest = out / "manifest.csv"
+    if not manifest.exists() or manifest.stat().st_size == 0:
+        return set()
+    try:
+        df = pd.read_csv(manifest)
+    except Exception:
+        return set()
+    if "run_id" not in df or "status" not in df:
+        return set()
+    return set(df.loc[df["status"] == "DONE", "run_id"].astype(str))
 
 
 def _append_event(path: Path, row: dict[str, object]) -> None:
