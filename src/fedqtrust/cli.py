@@ -11,6 +11,7 @@ from pathlib import Path
 from fedqtrust.config import load_config
 from fedqtrust.data.datasets import ensure_all_datasets
 from fedqtrust.device import write_environment_report
+from fedqtrust.e1_real import E1RealConfig, run_e1_real
 from fedqtrust.one_shot import OneShotConfig, run_one_shot
 from fedqtrust.publication import audit_publication_outputs, write_publication_audit
 from fedqtrust.publication_suite import PublicationSuiteConfig, run_publication_suite
@@ -218,6 +219,29 @@ def main(argv: list[str] | None = None) -> int:
     real_audit.add_argument("--output-dir", default="output/scientific_results")
     real_audit.add_argument("--strict-infra", action="store_true")
 
+    e1 = sub.add_parser("run-e1-real")
+    e1.add_argument("--output-dir", default="output/scientific_results/e1_attack_resilience")
+    e1.add_argument("--device", default="auto")
+    e1.add_argument("--rounds", type=int, default=100)
+    e1.add_argument("--seeds", default="42,123,456,789,999")
+    e1.add_argument("--datasets", default="pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist")
+    e1.add_argument("--methods", default="FedAvg,FedProx,FedQCNN,Krum,FLTrust,PQS-BFL,SecEdge-MC,FedQTrust")
+    e1.add_argument("--attacks", default="benign,label_flip,sign_flip,gaussian,lie,free_riding,combined")
+    e1.add_argument("--clients", type=int, default=10)
+    e1.add_argument("--clients-per-round", type=int, default=5)
+    e1.add_argument("--malicious-fraction", type=float, default=0.3)
+    e1.add_argument("--local-epochs", type=int, default=1)
+    e1.add_argument("--batch-size", type=int, default=128)
+    e1.add_argument("--learning-rate", type=float, default=0.001)
+    e1.add_argument("--weight-decay", type=float, default=1e-4)
+    e1.add_argument("--num-workers", type=int, default=4)
+    e1.add_argument("--max-train-samples", type=int, default=None)
+    e1.add_argument("--max-eval-samples", type=int, default=None)
+    e1.add_argument("--download-data", action="store_true")
+    e1.add_argument("--amp", action="store_true")
+    e1.add_argument("--require-cuda", action="store_true")
+    e1.add_argument("--no-save-checkpoints", action="store_true")
+
     run = sub.add_parser("run")
     _common(run)
     run.add_argument("--experiment", required=True, choices=[f"E{i}" for i in range(1, 10)])
@@ -280,6 +304,44 @@ def main(argv: list[str] | None = None) -> int:
         return audit_publication(args)
     if args.command == "audit-real-results":
         return audit_real_results(args)
+    if args.command == "run-e1-real":
+        import os
+        import traceback
+
+        cfg = E1RealConfig(
+            output_dir=args.output_dir,
+            device=args.device,
+            rounds=args.rounds,
+            seeds=tuple(int(item.strip()) for item in args.seeds.split(",") if item.strip()),
+            datasets=tuple(item.strip().lower() for item in args.datasets.split(",") if item.strip()),
+            methods=tuple(item.strip() for item in args.methods.split(",") if item.strip()),
+            attacks=tuple(item.strip() for item in args.attacks.split(",") if item.strip()),
+            clients=args.clients,
+            clients_per_round=args.clients_per_round,
+            malicious_fraction=args.malicious_fraction,
+            local_epochs=args.local_epochs,
+            batch_size=args.batch_size,
+            learning_rate=args.learning_rate,
+            weight_decay=args.weight_decay,
+            num_workers=args.num_workers,
+            max_train_samples=args.max_train_samples,
+            max_eval_samples=args.max_eval_samples,
+            download_data=args.download_data,
+            amp=args.amp,
+            require_cuda=args.require_cuda,
+            save_checkpoints=not args.no_save_checkpoints,
+        )
+        try:
+            run_e1_real(cfg)
+        except Exception:
+            traceback.print_exc()
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(1)
+        else:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(0)
     if args.command == "generate-report":
         return generate_report(args)
     raise ValueError(args.command)

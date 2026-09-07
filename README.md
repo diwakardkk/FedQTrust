@@ -347,6 +347,44 @@ The collaborator should send back `output/scientific_results.zip`.
 
 The generated `summaries/scientific_claims_supported.md` file is the paper-safety checklist. It lists exactly which claims are supported by the real output and which E1-E9 claims still require separate raw experiments.
 
+## Real E1 Attack/Baseline Experiments
+
+Run real E1 attack-resilience experiments with:
+
+```bash
+python -m fedqtrust run-e1-real --device cuda --download-data --require-cuda --amp --output-dir output/scientific_results/e1_attack_resilience
+```
+
+The default E1 grid is:
+
+```text
+8 methods x 7 attacks x 5 datasets x 5 seeds x 100 rounds
+```
+
+It writes:
+
+```text
+output/scientific_results/e1_attack_resilience/raw_metrics/e1_final_metrics.csv
+output/scientific_results/e1_attack_resilience/raw_metrics/e1_round_metrics.csv
+output/scientific_results/e1_attack_resilience/raw_metrics/e1_client_metrics.csv
+output/scientific_results/e1_attack_resilience/tables/
+output/scientific_results/e1_attack_resilience/figures/
+output/scientific_results/e1_attack_resilience/checkpoints/
+output/scientific_results/e1_attack_resilience.zip
+```
+
+To include E1 in the one-command GPU result bundle:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_E1=true ROUNDS=100 E1_ROUNDS=100 OUTPUT_DIR=output/scientific_results_e1 bash scripts/run_full_experiment_once.sh
+```
+
+For a quick E1 smoke check only:
+
+```bash
+python -m fedqtrust run-e1-real --device cpu --output-dir output/e1_quick_check --rounds 1 --seeds 42 --datasets breastmnist --methods FedAvg,FedQTrust --attacks benign,sign_flip --clients 2 --clients-per-round 2 --max-train-samples 32 --max-eval-samples 32 --num-workers 0 --no-save-checkpoints
+```
+
 ## Results Suite With Readiness Audit
 
 This script runs the implemented real training workflow, then builds the result bundle by reading the saved raw metrics. It does not write E1-E9 placeholder manifest entries.

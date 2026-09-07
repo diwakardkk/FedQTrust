@@ -24,6 +24,12 @@ from scipy.stats import wilcoxon
 from fedqtrust.device import collect_environment, git_commit, write_environment_report
 from fedqtrust.reporting.tables import save_table
 
+try:
+    pd.options.mode.string_storage = "python"
+    pd.options.future.infer_string = False
+except (AttributeError, KeyError, ValueError):
+    pass
+
 
 REAL_FIGURES = [
     "Fig01_real_validation_accuracy_by_round",
@@ -324,22 +330,33 @@ def _write_real_summaries(out: Path, config: RealResultsConfig, final: pd.DataFr
     ]
     (out / "summaries" / "final_summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
 
+    e1_present = (out / "e1_attack_resilience" / "DONE").exists()
+    supported = [
+        "- Real MedMNIST training/test metrics for the models and datasets listed in `raw_metrics/final_metrics_all.csv`.",
+        "- Validation convergence over the recorded rounds in `raw_metrics/round_metrics_all.csv`.",
+        "- GPU/CPU runtime and peak memory evidence when recorded by the training runner.",
+        "- Checkpoint evidence for trained model states included in the bundle.",
+    ]
+    unsupported = [
+        "- Full E2 QAOA-vs-baseline client-selection claims.",
+        "- Full E3-E9 paper-grid claims.",
+        "- Claims based on missing seeds, attacks, methods, datasets, or rounds.",
+    ]
+    if e1_present:
+        supported.append("- Real E1 attack/baseline evidence from `e1_attack_resilience/raw_metrics/e1_final_metrics.csv`.")
+    else:
+        unsupported.insert(0, "- Full E1 attack-resilience claims across all attacks and baselines.")
+
     claims = [
         "# Scientific Claims Supported",
         "",
         "Supported by this bundle:",
         "",
-        "- Real MedMNIST training/test metrics for the models and datasets listed in `raw_metrics/final_metrics_all.csv`.",
-        "- Validation convergence over the recorded rounds in `raw_metrics/round_metrics_all.csv`.",
-        "- GPU/CPU runtime and peak memory evidence when recorded by the training runner.",
-        "- Checkpoint evidence for trained model states included in the bundle.",
+        *supported,
         "",
         "Not supported by this bundle unless separate raw experiment outputs are added:",
         "",
-        "- Full E1 attack-resilience claims across all attacks and baselines.",
-        "- Full E2 QAOA-vs-baseline client-selection claims.",
-        "- Full E3-E9 paper-grid claims.",
-        "- Claims based on missing seeds, attacks, methods, datasets, or rounds.",
+        *unsupported,
         "",
         "This distinction is deliberate so paper text cannot accidentally cite generated placeholder values.",
     ]

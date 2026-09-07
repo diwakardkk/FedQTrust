@@ -16,6 +16,17 @@ MAX_TRAIN_SAMPLES="${MAX_TRAIN_SAMPLES:-}"
 MAX_EVAL_SAMPLES="${MAX_EVAL_SAMPLES:-}"
 SEED="${SEED:-42}"
 STRICT_INFRA="${STRICT_INFRA:-true}"
+RUN_E1="${RUN_E1:-false}"
+E1_ROUNDS="${E1_ROUNDS:-${ROUNDS:-100}}"
+E1_SEEDS="${E1_SEEDS:-42,123,456,789,999}"
+E1_DATASETS="${E1_DATASETS:-pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist}"
+E1_METHODS="${E1_METHODS:-FedAvg,FedProx,FedQCNN,Krum,FLTrust,PQS-BFL,SecEdge-MC,FedQTrust}"
+E1_ATTACKS="${E1_ATTACKS:-benign,label_flip,sign_flip,gaussian,lie,free_riding,combined}"
+E1_CLIENTS="${E1_CLIENTS:-10}"
+E1_CLIENTS_PER_ROUND="${E1_CLIENTS_PER_ROUND:-5}"
+E1_LOCAL_EPOCHS="${E1_LOCAL_EPOCHS:-1}"
+E1_MAX_TRAIN_SAMPLES="${E1_MAX_TRAIN_SAMPLES:-}"
+E1_MAX_EVAL_SAMPLES="${E1_MAX_EVAL_SAMPLES:-}"
 
 echo "[FedQTrust] Scientific results suite"
 echo "[FedQTrust] OUTPUT_DIR=$OUTPUT_DIR DEVICE=$DEVICE MODE=$MODE"
@@ -59,7 +70,44 @@ if [ "$MODE" = "paper" ]; then
 
   python "${train_args[@]}"
 
-  echo "[4/5] Read real metrics and generate plots, tables, statistics, and summaries"
+  if [ "$RUN_E1" = "true" ]; then
+    echo "[4/6] Run real E1 attack/baseline experiments"
+    e1_args=(
+      -m fedqtrust run-e1-real
+      --download-data
+      --device "$DEVICE"
+      --output-dir "$OUTPUT_DIR/e1_attack_resilience"
+      --rounds "$E1_ROUNDS"
+      --seeds "$E1_SEEDS"
+      --datasets "$E1_DATASETS"
+      --methods "$E1_METHODS"
+      --attacks "$E1_ATTACKS"
+      --clients "$E1_CLIENTS"
+      --clients-per-round "$E1_CLIENTS_PER_ROUND"
+      --local-epochs "$E1_LOCAL_EPOCHS"
+      --batch-size "$BATCH_SIZE"
+      --learning-rate "$LEARNING_RATE"
+      --weight-decay "$WEIGHT_DECAY"
+      --num-workers "$NUM_WORKERS"
+    )
+    if [ -n "$E1_MAX_TRAIN_SAMPLES" ]; then
+      e1_args+=(--max-train-samples "$E1_MAX_TRAIN_SAMPLES")
+    fi
+    if [ -n "$E1_MAX_EVAL_SAMPLES" ]; then
+      e1_args+=(--max-eval-samples "$E1_MAX_EVAL_SAMPLES")
+    fi
+    if [ "$DEVICE" != "cpu" ]; then
+      e1_args+=(--amp --require-cuda)
+    fi
+    python "${e1_args[@]}"
+    READ_STEP="[5/6]"
+    AUDIT_STEP="[6/6]"
+  else
+    READ_STEP="[4/5]"
+    AUDIT_STEP="[5/5]"
+  fi
+
+  echo "$READ_STEP Read real metrics and generate plots, tables, statistics, and summaries"
   real_args=(
     -m fedqtrust real-results-suite
     --source-dir "$RAW_DIR"
@@ -73,7 +121,7 @@ if [ "$MODE" = "paper" ]; then
 
   python "${real_args[@]}"
 
-  echo "[5/5] Audit real-result completeness"
+  echo "$AUDIT_STEP Audit real-result completeness"
   audit_args=(-m fedqtrust audit-real-results --output-dir "$OUTPUT_DIR")
   if [ "$STRICT_INFRA" = "true" ]; then
     audit_args+=(--strict-infra)
