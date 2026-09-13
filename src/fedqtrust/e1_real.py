@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 
@@ -270,6 +270,10 @@ def _run_condition(
                 "train_loss": float(np.mean(losses)) if losses else np.nan,
                 "test_accuracy": metrics["accuracy"],
                 "weighted_f1": metrics["weighted_f1"],
+                "macro_f1": metrics["macro_f1"],
+                "balanced_accuracy": metrics["balanced_accuracy"],
+                "macro_precision": metrics["macro_precision"],
+                "macro_recall": metrics["macro_recall"],
                 "auc_roc": metrics["auc_roc"],
                 "round_time_s": elapsed,
                 "selected_clients": ",".join(map(str, client_ids)),
@@ -446,6 +450,10 @@ def _evaluate(model: nn.Module, loader: DataLoader, device: str, num_classes: in
         "test_loss": total_loss / max(batches, 1),
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "weighted_f1": float(f1_score(y_true, y_pred, average="weighted", zero_division=0)),
+        "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
+        "balanced_accuracy": float(balanced_accuracy_score(y_true, y_pred)),
+        "macro_precision": float(precision_score(y_true, y_pred, average="macro", zero_division=0)),
+        "macro_recall": float(recall_score(y_true, y_pred, average="macro", zero_division=0)),
         "auc_roc": float("nan"),
     }
     if num_classes == 2 and len(set(y_true)) == 2:
@@ -455,8 +463,9 @@ def _evaluate(model: nn.Module, loader: DataLoader, device: str, num_classes: in
 
 def _write_e1_tables(out: Path, final: pd.DataFrame, clients: pd.DataFrame, timing: pd.DataFrame) -> None:
     table_dir = out / "tables"
-    main = final.groupby(["method", "attack"], as_index=False)[["accuracy", "weighted_f1", "auc_roc"]].mean()
-    per_dataset = final.groupby(["dataset", "method", "attack"], as_index=False)[["accuracy", "weighted_f1", "auc_roc"]].mean()
+    metric_cols = _available_metric_columns(final)
+    main = final.groupby(["method", "attack"], as_index=False)[metric_cols].mean()
+    per_dataset = final.groupby(["dataset", "method", "attack"], as_index=False)[metric_cols].mean()
     detection = _detection_table(clients)
     timing_summary = timing.groupby(["method", "attack"], as_index=False)["round_time_s"].agg(["mean", "std"]).reset_index()
     stats = _e1_stats(final)
@@ -468,6 +477,11 @@ def _write_e1_tables(out: Path, final: pd.DataFrame, clients: pd.DataFrame, timi
         "E1_real_statistical_tests": stats,
     }.items():
         save_table(df, table_dir, stem)
+
+
+def _available_metric_columns(df: pd.DataFrame) -> list[str]:
+    preferred = ["accuracy", "weighted_f1", "macro_f1", "balanced_accuracy", "macro_precision", "macro_recall", "auc_roc"]
+    return [column for column in preferred if column in df.columns]
 
 
 def _write_e1_figures(out: Path, final: pd.DataFrame, rounds: pd.DataFrame, clients: pd.DataFrame) -> None:

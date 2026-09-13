@@ -129,8 +129,9 @@ def _write_e1_outputs(out: Path, final: pd.DataFrame, rounds: pd.DataFrame, clie
     trust = clients[["run_id", "seed", "dataset", "method", "attack", "round", "client_id", "is_malicious", "trust_score", "consistency"]].copy()
     trust.to_csv(exp_dir / "trust_scores.csv", index=False)
     _write_done(exp_dir)
-    _save_table(out, "E1_main_results", final.groupby(["method", "attack"], as_index=False)[["accuracy", "weighted_f1", "auc_roc"]].mean())
-    _save_table(out, "E1_per_dataset_results", final.groupby(["dataset", "method", "attack"], as_index=False)[["accuracy", "weighted_f1", "auc_roc"]].mean())
+    metric_cols = _available_metric_columns(final)
+    _save_table(out, "E1_main_results", final.groupby(["method", "attack"], as_index=False)[metric_cols].mean())
+    _save_table(out, "E1_per_dataset_results", final.groupby(["dataset", "method", "attack"], as_index=False)[metric_cols].mean())
     _save_table(out, "E1_detection_results", _detection_table(clients))
     _save_table(out, "statistical_significance", _e1_stats(final))
     return {**paths, "trust_scores.csv": exp_dir / "trust_scores.csv"}
@@ -684,7 +685,7 @@ def _write_configuration_tables(out: Path, config: RealPaperConfig) -> None:
     ]
     attack_rows = [{"attack": attack, "implemented_effect": _attack_description(attack)} for attack in config.attacks]
     single_client = pd.read_csv(out / "experiments" / "E1" / "metrics.csv").query("attack == 'benign'").copy()
-    single_client = single_client[["dataset", "method", "seed", "accuracy", "weighted_f1", "auc_roc"]]
+    single_client = single_client[["dataset", "method", "seed", *_available_metric_columns(single_client)]]
     _save_table(out, "dataset_summary", pd.DataFrame(dataset_rows))
     _save_table(out, "client_distribution", pd.DataFrame(client_rows))
     _save_table(out, "baseline_configuration", pd.DataFrame(baseline_rows))
@@ -766,6 +767,11 @@ def _read_required(path: Path) -> pd.DataFrame:
 
 def _save_table(out: Path, stem: str, df: pd.DataFrame) -> None:
     save_table(df, out / "paper_tables", stem)
+
+
+def _available_metric_columns(df: pd.DataFrame) -> list[str]:
+    preferred = ["accuracy", "weighted_f1", "macro_f1", "balanced_accuracy", "macro_precision", "macro_recall", "auc_roc"]
+    return [column for column in preferred if column in df.columns]
 
 
 def _detection_table(clients: pd.DataFrame) -> pd.DataFrame:
