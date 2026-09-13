@@ -212,7 +212,7 @@ python -m fedqtrust run-gpu-once \
   --output-dir output/gpu_once \
   --rounds 3 \
   --batch-size 128 \
-  --num-workers 4 \
+  --num-workers 0 \
   --models classical_cnn,fedqcnn \
   --datasets pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist \
   --require-cuda \
@@ -222,7 +222,7 @@ python -m fedqtrust run-gpu-once \
 Longer run:
 
 ```bash
-ROUNDS=20 BATCH_SIZE=256 NUM_WORKERS=8 bash scripts/run_gpu_once.sh
+ROUNDS=20 BATCH_SIZE=256 NUM_WORKERS=0 bash scripts/run_gpu_once.sh
 ```
 
 Quick server check:
@@ -382,7 +382,7 @@ CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_E1=true ROU
 To run the complete real E1-E9 paper workflow in one command:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_ALL_REAL=true ROUNDS=200 E3_ROUNDS=200 OUTPUT_DIR=output/paper_real bash scripts/run_full_experiment_once.sh
+CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_ALL_REAL=true ROUNDS=200 E3_ROUNDS=200 NUM_WORKERS=0 OUTPUT_DIR=output/paper_real bash scripts/run_full_experiment_once.sh
 ```
 
 This writes the final bundle to:

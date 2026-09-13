@@ -627,20 +627,21 @@ def _client_loader(train_ds, indices: list[int], config: E1RealConfig, device: s
     kwargs = {
         "batch_size": config.batch_size,
         "shuffle": True,
-        "num_workers": max(0, config.num_workers),
+        # Client loaders are short-lived and created many thousands of times in
+        # the full E1-E9 grid. Multiprocessing workers can exhaust the server's
+        # file-descriptor limit before Python reaps every worker pipe, so keep
+        # these loaders single-process and reserve worker processes for the
+        # longer-lived evaluation loaders.
+        "num_workers": 0,
         "pin_memory": device.startswith("cuda"),
         "generator": generator,
     }
-    if kwargs["num_workers"] > 0:
-        kwargs["persistent_workers"] = True
-        kwargs["prefetch_factor"] = 2
     return DataLoader(Subset(train_ds, indices), **kwargs)
 
 
 def _loader(dataset, batch_size: int, shuffle: bool, num_workers: int, device: str) -> DataLoader:
     kwargs = {"batch_size": batch_size, "shuffle": shuffle, "num_workers": max(0, num_workers), "pin_memory": device.startswith("cuda")}
     if kwargs["num_workers"] > 0:
-        kwargs["persistent_workers"] = True
         kwargs["prefetch_factor"] = 2
     return DataLoader(dataset, **kwargs)
 
