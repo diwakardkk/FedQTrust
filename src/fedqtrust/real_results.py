@@ -167,10 +167,9 @@ def audit_real_results_outputs(output_dir: str | Path, strict_infra: bool = True
             issues.append(RealResultsIssue("BLOCKER", path.name, f"Missing nonempty file: {path}."))
 
     for stem in REAL_FIGURES:
-        for suffix in ("pdf", "png"):
-            path = out / "figures" / f"{stem}.{suffix}"
-            if not _exists_nonempty(path):
-                issues.append(RealResultsIssue("BLOCKER", stem, f"Missing nonempty figure: {path}."))
+        path = out / "figures" / f"{stem}.png"
+        if not _exists_nonempty(path):
+            issues.append(RealResultsIssue("BLOCKER", stem, f"Missing nonempty figure: {path}."))
 
     for stem in REAL_TABLES:
         for suffix in ("csv", "md", "tex"):
@@ -556,7 +555,6 @@ def _plot_gpu_memory(fig_dir: Path, rounds: pd.DataFrame) -> None:
 
 
 def _save(fig, stem: Path) -> None:
-    fig.savefig(stem.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.08)
     fig.savefig(stem.with_suffix(".png"), dpi=300, bbox_inches="tight", pad_inches=0.08)
 
 

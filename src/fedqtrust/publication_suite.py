@@ -596,7 +596,6 @@ def _write_figures(out: Path, data: dict[str, pd.DataFrame], rounds: int) -> Non
     for stem in REQUIRED_FIGURES:
         if stem == "Fig10_sensitivity_heatmaps":
             fig = _plot_sensitivity_figure()
-            fig.savefig(fig_dir / f"{stem}.pdf", bbox_inches="tight", pad_inches=0.08)
             fig.savefig(fig_dir / f"{stem}.png", bbox_inches="tight", pad_inches=0.08)
             plt.close(fig)
             continue
@@ -626,7 +625,6 @@ def _write_figures(out: Path, data: dict[str, pd.DataFrame], rounds: int) -> Non
         elif stem == "Fig13_clients_per_round":
             _plot_clients_per_round(ax)
         ax.set_title(_pretty_title(stem), pad=16, fontweight="bold")
-        fig.savefig(fig_dir / f"{stem}.pdf", bbox_inches="tight", pad_inches=0.08)
         fig.savefig(fig_dir / f"{stem}.png", bbox_inches="tight", pad_inches=0.08)
         plt.close(fig)
 

@@ -14,7 +14,6 @@ def test_publication_suite_generates_required_artifacts(tmp_path):
     )
 
     for stem in REQUIRED_FIGURES:
-        assert (out / "paper_figures" / f"{stem}.pdf").stat().st_size > 0
         assert (out / "paper_figures" / f"{stem}.png").stat().st_size > 0
 
     for stem in REQUIRED_TABLES:

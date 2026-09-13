@@ -415,33 +415,231 @@ def _write_figures(out: Path, outputs: dict[str, dict[str, Path]]) -> None:
 
     fig_dir = out / "paper_figures"
     e1 = pd.read_csv(outputs["E1"]["metrics.csv"])
-    fig, ax = plt.subplots(figsize=(13, 7))
-    e1.groupby(["attack", "method"])["accuracy"].mean().unstack("method").plot(kind="bar", ax=ax)
-    ax.set_title("E1 real attack resilience", fontweight="bold")
-    ax.set_ylabel("Test accuracy")
-    ax.set_ylim(0, 1)
-    ax.legend(ncol=2, frameon=True)
-    _save(fig, fig_dir / "Fig02_E1_data_poison_accuracy")
-    _save(fig, fig_dir / "Fig03_E1_LIE_accuracy")
+    rounds = pd.read_csv(outputs["E1"]["round_metrics.csv"])
+    clients = pd.read_csv(outputs["E1"]["client_metrics.csv"])
+    e2 = pd.read_csv(outputs["E2"]["metrics.csv"])
+    e5 = pd.read_csv(outputs["E5"]["metrics.csv"])
+    e6 = pd.read_csv(outputs["E6"]["metrics.csv"])
+    e7 = pd.read_csv(outputs["E7"]["timing.csv"])
+    e8 = pd.read_csv(outputs["E8"]["metrics.csv"])
+    e9 = pd.read_csv(outputs["E9"]["metrics.csv"])
 
-    for stem, title in [
-        ("Fig01_FedQTrust_architecture", "FedQTrust real experiment pipeline"),
-        ("Fig04_trust_evolution", "FedQTrust trust evolution"),
-        ("Fig05_QAOA_quality", "QUBO/QAOA quality from real trust rows"),
-        ("Fig06_Byzantine_ROC", "Byzantine detection from real trust rows"),
-        ("Fig07_convergence", "Real convergence"),
-        ("Fig08_quantum_gain", "Quantum gain from real E1 metrics"),
-        ("Fig09_ablation", "Ablation from real baseline contrasts"),
-        ("Fig10_sensitivity_heatmaps", "Sensitivity from real trust traces"),
-        ("Fig11_overhead", "Measured overhead"),
-        ("Fig12_scalability", "Scalability analysis"),
-        ("Fig13_clients_per_round", "Clients per round analysis"),
-    ]:
-        fig, ax = plt.subplots(figsize=(11, 7))
-        ax.text(0.5, 0.5, title, ha="center", va="center", fontsize=18, fontweight="bold")
-        ax.axis("off")
-        _save(fig, fig_dir / stem)
+    _plot_pipeline(fig_dir / "Fig01_FedQTrust_architecture")
+    _plot_e1_attack_accuracy(e1, fig_dir / "Fig02_E1_data_poison_accuracy")
+    _plot_e1_lie_accuracy(e1, fig_dir / "Fig03_E1_LIE_accuracy")
+    _plot_trust_evolution(clients, fig_dir / "Fig04_trust_evolution")
+    _plot_qaoa_quality(e2, fig_dir / "Fig05_QAOA_quality")
+    _plot_detection_rates(clients, fig_dir / "Fig06_Byzantine_ROC")
+    _plot_convergence(rounds, fig_dir / "Fig07_convergence")
+    _plot_quantum_gain(e1, fig_dir / "Fig08_quantum_gain")
+    _plot_ablation(e5, fig_dir / "Fig09_ablation")
+    _plot_sensitivity(e6, fig_dir / "Fig10_sensitivity_heatmaps")
+    _plot_overhead(e7, fig_dir / "Fig11_overhead")
+    _plot_scalability(e8, fig_dir / "Fig12_scalability")
+    _plot_clients_per_round(e9, fig_dir / "Fig13_clients_per_round")
     plt.close("all")
+
+
+def _finish_axes(ax, title: str, ylabel: str | None = None, xlabel: str | None = None) -> None:
+    ax.set_title(title, fontweight="bold", pad=10)
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    ax.grid(axis="y", alpha=0.25)
+    ax.tick_params(axis="x", labelrotation=30)
+    for label in ax.get_xticklabels():
+        label.set_ha("right")
+
+
+def _plot_pipeline(stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    stages = ["Data", "Clients", "Attacks", "Trust", "QUBO", "Aggregate", "Audit"]
+    y = np.ones(len(stages))
+    fig, ax = plt.subplots(figsize=(10, 3.8), constrained_layout=True)
+    ax.scatter(range(len(stages)), y, s=900, color="#386641", zorder=3)
+    ax.plot(range(len(stages)), y, color="#6a994e", linewidth=3, zorder=2)
+    for idx, stage in enumerate(stages):
+        ax.text(idx, 1.0, stage, ha="center", va="center", color="white", fontweight="bold", fontsize=10)
+    ax.set_ylim(0.8, 1.2)
+    ax.set_xlim(-0.5, len(stages) - 0.5)
+    ax.axis("off")
+    ax.set_title("FedQTrust real experiment pipeline", fontweight="bold", pad=8)
+    _save(fig, stem)
+
+
+def _plot_e1_attack_accuracy(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    table = df.groupby(["attack", "method"])["accuracy"].mean().unstack("method")
+    fig, ax = plt.subplots(figsize=(12, 6), constrained_layout=True)
+    table.plot(kind="bar", ax=ax, width=0.82)
+    ax.set_ylim(0, 1)
+    _finish_axes(ax, "E1 attack resilience across real runs", "Test accuracy", "Attack")
+    ax.legend(ncol=2, fontsize=9, frameon=True)
+    _save(fig, stem)
+
+
+def _plot_e1_lie_accuracy(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    lie = df.query("attack == 'lie'").groupby("method", as_index=False)["accuracy"].mean().sort_values("accuracy")
+    fig, ax = plt.subplots(figsize=(9, 5.2), constrained_layout=True)
+    ax.barh(lie["method"], lie["accuracy"], color="#457b9d")
+    ax.set_xlim(0, 1)
+    _finish_axes(ax, "E1 LIE attack accuracy", "Method", "Test accuracy")
+    _save(fig, stem)
+
+
+def _plot_trust_evolution(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    fed = df.query("method == 'FedQTrust'").copy()
+    if fed.empty:
+        fed = df.copy()
+    grouped = fed.groupby(["attack", "round"], as_index=False)["trust_score"].mean()
+    fig, ax = plt.subplots(figsize=(10, 5.5), constrained_layout=True)
+    for attack, group in grouped.groupby("attack"):
+        ax.plot(group["round"], group["trust_score"], linewidth=2, label=attack)
+    ax.set_ylim(0, 1)
+    _finish_axes(ax, "FedQTrust mean trust evolution", "Mean trust score", "Round")
+    ax.legend(ncol=2, fontsize=9)
+    _save(fig, stem)
+
+
+def _plot_qaoa_quality(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(8.5, 5), constrained_layout=True)
+    if {"solver", "objective"}.issubset(df.columns) and not df.empty:
+        table = df.groupby("solver", as_index=False)["objective"].mean().sort_values("objective")
+        ax.bar(table["solver"], table["objective"], color="#2a9d8f")
+    _finish_axes(ax, "E2 QUBO/QAOA objective quality", "Mean objective", "Solver")
+    _save(fig, stem)
+
+
+def _plot_detection_rates(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    det = _detection_table(df)
+    subset = det.groupby("method", as_index=False)[["TPR", "FPR", "precision"]].mean()
+    fig, ax = plt.subplots(figsize=(9.5, 5.2), constrained_layout=True)
+    subset.set_index("method")[["TPR", "FPR", "precision"]].plot(kind="bar", ax=ax, width=0.78)
+    ax.set_ylim(0, 1)
+    _finish_axes(ax, "Byzantine detection quality", "Rate", "Method")
+    ax.legend(fontsize=9)
+    _save(fig, stem)
+
+
+def _plot_convergence(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    subset = df.query("method in ['FedQTrust', 'FedAvg', 'Krum', 'FLTrust']").copy()
+    grouped = subset.groupby(["method", "round"], as_index=False)["test_accuracy"].mean()
+    fig, ax = plt.subplots(figsize=(10, 5.5), constrained_layout=True)
+    for method, group in grouped.groupby("method"):
+        ax.plot(group["round"], group["test_accuracy"], linewidth=2, label=method)
+    ax.set_ylim(0, 1)
+    _finish_axes(ax, "E3 convergence over rounds", "Test accuracy", "Round")
+    ax.legend(fontsize=9)
+    _save(fig, stem)
+
+
+def _plot_quantum_gain(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    pivot = df.pivot_table(index=["dataset", "attack", "seed"], columns="method", values="accuracy").reset_index()
+    rows = []
+    for baseline in ("FedQCNN", "PQS-BFL", "FedAvg"):
+        if "FedQTrust" in pivot and baseline in pivot:
+            rows.append({"baseline": baseline, "gain": float((pivot["FedQTrust"] - pivot[baseline]).mean())})
+    gain = pd.DataFrame(rows)
+    fig, ax = plt.subplots(figsize=(8, 4.8), constrained_layout=True)
+    if not gain.empty:
+        ax.bar(gain["baseline"], gain["gain"], color="#606c38")
+        ax.axhline(0, color="black", linewidth=1)
+    _finish_axes(ax, "E4 FedQTrust mean accuracy gain", "Accuracy delta", "Baseline")
+    _save(fig, stem)
+
+
+def _plot_ablation(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    table = df.copy()
+    if "ablation" not in table.columns and "method" in table.columns:
+        table["ablation"] = table["method"].replace({"FedQTrust": "Full"})
+    grouped = table.groupby("ablation", as_index=False)["accuracy"].mean().sort_values("accuracy") if {"ablation", "accuracy"}.issubset(table.columns) else pd.DataFrame()
+    fig, ax = plt.subplots(figsize=(9, 5), constrained_layout=True)
+    if not grouped.empty:
+        ax.barh(grouped["ablation"], grouped["accuracy"], color="#bc6c25")
+        ax.set_xlim(0, 1)
+    _finish_axes(ax, "E5 ablation accuracy", "Configuration", "Test accuracy")
+    _save(fig, stem)
+
+
+def _plot_sensitivity(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8), constrained_layout=True)
+    for ax, parameter in zip(axes, ["alpha", "theta"]):
+        subset = df.query("parameter == @parameter") if "parameter" in df.columns else pd.DataFrame()
+        if not subset.empty and {"value", "accuracy"}.issubset(subset.columns):
+            grouped = subset.groupby("value", as_index=False)["accuracy"].mean()
+            ax.plot(grouped["value"], grouped["accuracy"], marker="o", linewidth=2)
+        _finish_axes(ax, f"E6 {parameter} sensitivity", "Test accuracy", parameter)
+    _save(fig, stem)
+
+
+def _plot_overhead(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(11, 5.2), constrained_layout=True)
+    if {"method", "attack", "mean"}.issubset(df.columns) and not df.empty:
+        table = df.groupby("method", as_index=False)["mean"].mean().sort_values("mean")
+        ax.bar(table["method"], table["mean"], color="#6d597a")
+    _finish_axes(ax, "E7 mean round overhead", "Seconds per round", "Method")
+    _save(fig, stem)
+
+
+def _plot_scalability(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    fig, ax1 = plt.subplots(figsize=(8.5, 5), constrained_layout=True)
+    if {"K", "accuracy"}.issubset(df.columns) and not df.empty:
+        agg_spec = {"accuracy": ("accuracy", "mean")}
+        if "total_time_s" in df.columns:
+            agg_spec["total_time_s"] = ("total_time_s", "mean")
+        grouped = df.groupby("K", as_index=False).agg(**agg_spec)
+        ax1.plot(grouped["K"], grouped["accuracy"], marker="o", linewidth=2, color="#1d3557", label="Accuracy")
+        ax1.set_ylim(0, 1)
+        ax1.set_ylabel("Test accuracy")
+        if "total_time_s" in grouped:
+            ax2 = ax1.twinx()
+            ax2.plot(grouped["K"], grouped["total_time_s"], marker="s", linewidth=2, color="#e76f51", label="Time")
+            ax2.set_ylabel("Total time (s)")
+    _finish_axes(ax1, "E8 scalability with client count", None, "Clients K")
+    _save(fig, stem)
+
+
+def _plot_clients_per_round(df: pd.DataFrame, stem: Path) -> None:
+    import matplotlib.pyplot as plt
+
+    fig, ax1 = plt.subplots(figsize=(8.5, 5), constrained_layout=True)
+    if {"clients_per_round_sweep", "accuracy"}.issubset(df.columns) and not df.empty:
+        agg_spec = {"accuracy": ("accuracy", "mean")}
+        if "total_time_s" in df.columns:
+            agg_spec["total_time_s"] = ("total_time_s", "mean")
+        grouped = df.groupby("clients_per_round_sweep", as_index=False).agg(**agg_spec)
+        ax1.plot(grouped["clients_per_round_sweep"], grouped["accuracy"], marker="o", linewidth=2, color="#1d3557")
+        ax1.set_ylim(0, 1)
+        ax1.set_ylabel("Test accuracy")
+        if "total_time_s" in grouped:
+            ax2 = ax1.twinx()
+            ax2.plot(grouped["clients_per_round_sweep"], grouped["total_time_s"], marker="s", linewidth=2, color="#e76f51")
+            ax2.set_ylabel("Total time (s)")
+    _finish_axes(ax1, "E9 clients per round", None, "Clients per round")
+    _save(fig, stem)
 
 
 def _write_manifest(out: Path, outputs: dict[str, dict[str, Path]]) -> None:
@@ -660,7 +858,6 @@ def _style_plots() -> None:
 
 def _save(fig, stem: Path) -> None:
     stem.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(stem.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.08)
     fig.savefig(stem.with_suffix(".png"), dpi=300, bbox_inches="tight", pad_inches=0.08)
 
 

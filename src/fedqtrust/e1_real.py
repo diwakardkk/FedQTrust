@@ -701,7 +701,6 @@ def _append_event(path: Path, row: dict[str, object]) -> None:
 
 def _save(fig, stem: Path) -> None:
     stem.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(stem.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.08)
     fig.savefig(stem.with_suffix(".png"), dpi=300, bbox_inches="tight", pad_inches=0.08)
 
 

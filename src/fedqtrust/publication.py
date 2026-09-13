@@ -126,10 +126,7 @@ def audit_publication_outputs(output_dir: str | Path, strict_infra: bool = True)
                 issues.append(AuditIssue("BLOCKER", exp, f"No {required} found under {exp_dir}."))
 
     for stem in REQUIRED_FIGURES:
-        pdf = out / "paper_figures" / f"{stem}.pdf"
         png = out / "paper_figures" / f"{stem}.png"
-        if not _exists_nonempty(pdf):
-            issues.append(AuditIssue("BLOCKER", stem, f"Missing nonempty figure PDF: {pdf}."))
         if not _exists_nonempty(png):
             issues.append(AuditIssue("BLOCKER", stem, f"Missing nonempty figure PNG: {png}."))
 
@@ -171,4 +168,3 @@ def write_publication_audit(output_dir: str | Path, strict_infra: bool = True) -
     lines.append("")
     report_path.write_text("\n".join(lines), encoding="utf-8")
     return report_path
-

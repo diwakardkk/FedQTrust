@@ -336,7 +336,6 @@ def _save_one_shot_plots(run_dir: Path, round_rows: list[dict[str, object]], fin
         ax.set_ylabel("Validation Accuracy")
         ax.set_ylim(0, 1)
         ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0)
-        fig.savefig(fig_dir / "validation_accuracy_by_round.pdf", bbox_inches="tight")
         fig.savefig(fig_dir / "validation_accuracy_by_round.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
     if final_rows:
@@ -358,6 +357,5 @@ def _save_one_shot_plots(run_dir: Path, round_rows: list[dict[str, object]], fin
         ax.set_ylabel("Official Test Accuracy")
         ax.set_ylim(0, 1)
         ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0)
-        fig.savefig(fig_dir / "test_accuracy_by_dataset.pdf", bbox_inches="tight")
         fig.savefig(fig_dir / "test_accuracy_by_dataset.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
