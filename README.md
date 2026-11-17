@@ -1,603 +1,119 @@
 # FedQTrust
 
-FedQTrust is a research-code repository for trustworthy, quantum-resilient federated learning on multi-modal MedMNIST medical imaging. It includes deterministic data setup, CNN/FedQCNN model paths, trust scoring, QUBO client selection, Byzantine attack utilities, crypto wrappers, blockchain abstractions, smoke tests, and experiment/reporting scaffolds.
+Trust-aware federated learning for multi-modal medical imaging with a hybrid quantum–classical
+classifier (FedQCNN), QUBO/QAOA Byzantine-robust client selection, a trust ledger and NIST
+post-quantum cryptography (ML-KEM-768, ML-DSA-65).
 
-This public repository intentionally does **not** include `main-v2.tex`, downloaded datasets, checkpoints, or generated results.
+This repository contains the exact code that produced the results and the aggregated results of the
+complete E1–E9 run (1,071 / 1,071 jobs).
 
-## Clone
-
-```bash
-git clone https://github.com/diwakardkk/FedQTrust.git
-cd FedQTrust
+```
+FedQTrust/
+├── code/                    Code used for the final run
+│   ├── fedqtrust/           Package: models, FL engine, trust, QUBO/QAOA, attacks, crypto, report
+│   ├── tests/               Unit tests (pytest)
+│   ├── blockchain/          Hyperledger Fabric chaincode (not deployed in this run)
+│   ├── docs/                Implementation notes and validation
+│   ├── run.py               CLI: plan | preflight | data | run | benchmarks | report | status | export
+│   ├── server.py            Detached supervisor, one worker per GPU-list entry (repeats allowed)
+│   ├── run_complete.sh      Preflight + start
+│   ├── fedq_launch.sh       Watchdog (cron every 10 min + @reboot; resumes from checkpoints)
+│   ├── gpus.conf            Worker → GPU map used (12 workers on 8 GPUs)
+│   ├── settings.json        Configuration of the final run
+│   ├── setup_server.sh      Environment setup (Python ≥ 3.11, PyTorch cu126, Qiskit, liboqs)
+│   └── requirements*.txt
+└── results/
+    ├── figures/             Fig01–Fig13 (+ Fig07b), PNG 300 dpi
+    ├── paper_tables/        Result tables (CSV)
+    ├── tables/              Aggregated tables: final_results, results_mean_std, statistics, detection, …
+    └── audit.json           Run audit and documented limitations
 ```
 
-## What Git Tracks
+## Setup
 
-Tracked:
+| Item | Value |
+|---|---|
+| Datasets | MedMNIST v2, 28×28: PathMNIST, OCTMNIST, PneumoniaMNIST, RetinaMNIST, BreastMNIST |
+| Federation | K = 40 clients (8 per dataset), Dirichlet α = 0.5, k = 5 per round, 100 rounds, 3 local epochs |
+| Model | Shared CNN backbone + 4-qubit ZZFeatureMap / RealAmplitudes (reps = 2) quantum layer, 5 heads |
+| Selection | Trust filter (τ ≥ θ) → QUBO solved with QAOA (p = 3), simulated-annealing fallback |
+| Crypto | ML-KEM-768 + ML-DSA-65 via liboqs 0.16.0 (real measurements) |
+| Ledger | In-memory ledger (`infrastructure: local`); Hyperledger Fabric **not** deployed |
+| Seeds | 42, 123, 456, 789, 999 (E8/E9: 3 seeds; E2/E3/E6: seed 42) |
+| Hardware | 8 GPUs (6× RTX 3090, 2× V100S), 36 CPU cores; workload is CPU-bound (quantum simulation) |
 
-```text
-src/fedqtrust/
-fedqtrust/
-configs/
-scripts/
-tests/
-blockchain/
-slurm/
-requirements*.txt
-pyproject.toml
-environment.yml
-README.md
-Makefile
-```
+## Key results
 
-Ignored:
+Test accuracy (%), mean ± std over 5 seeds. Full tables are in [results/paper_tables](results/paper_tables), and figures are in [results/figures](results/figures).
 
-```text
-main-v2.tex
-data/raw/*
-data/partitions/*
-data/metadata/*
-output/*
-*.pt
-*.pth
-.env
-.venv/
-```
+**E1, 20% attack ratio, macro-average over 5 datasets**
 
-## GPU Server Requirements
+| Attack | FedAvg | FedProx | FedQCNN | Krum | FLTrust | FedQTrust |
+|---|---|---|---|---|---|---|
+| Benign | 53.75 ± 3.17 | 52.69 ± 4.28 | 53.00 ± 1.76 | 41.41 ± 5.84 | 51.00 ± 2.35 | 46.70 ± 2.53 |
+| Label flip | 51.69 ± 3.99 | 48.99 ± 3.97 | 51.82 ± 2.91 | 37.34 ± 2.14 | 49.21 ± 2.06 | 44.84 ± 2.61 |
+| Sign flip | 50.68 ± 3.44 | 49.37 ± 3.58 | 51.27 ± 4.14 | 42.98 ± 1.21 | 51.66 ± 4.17 | 45.06 ± 1.21 |
+| LIE | 51.90 ± 3.50 | 48.57 ± 3.08 | 53.91 ± 1.60 | 40.67 ± 5.36 | 51.89 ± 1.43 | 49.61 ± 2.50 |
+| Free-ride 40% | 51.47 ± 2.67 | 46.97 ± 3.26 | 50.72 ± 1.58 | 41.19 ± 3.07 | 47.20 ± 3.32 | 44.61 ± 3.61 |
+| Combined 30% | 50.62 ± 2.76 | 47.57 ± 3.41 | 51.28 ± 2.13 | 40.96 ± 6.41 | 47.96 ± 3.85 | 45.00 ± 3.18 |
 
-Recommended for full runs:
+PQS-BFL and SecEdge-MC have no Byzantine defence, so their accuracy equals FedAvg.
 
-- Linux server with NVIDIA GPU
-- recent NVIDIA driver
-- CUDA-compatible PyTorch build
-- Python 3.10-3.12 recommended for production
-- multi-core CPU and sufficient RAM
-- optional: Qiskit Aer GPU build
-- optional for paper-strict mode: Docker, Hyperledger Fabric, liboqs
+**E2: selection rules under 20% LIE, PathMNIST (seed 42).** QUBO-QAOA 52.20, QUBO + noise 53.23, QUBO-SA 49.57, L2-norm 40.79, Random 36.74, FLTrust 31.67, Krum 18.01.
 
-Check the server:
+**E5: ablation, PneumoniaMNIST, 20% attacks**
 
-```bash
-nvidia-smi
-python3 --version
-```
+| Config | Label flip | LIE |
+|---|---|---|
+| No-QUBO (L2-norm) | 52.28 ± 1.77 | 73.30 ± 6.99 |
+| No-Trust | 76.41 ± 4.09 | 79.10 ± 4.61 |
+| No-Blockchain | 72.76 ± 4.11 | 73.04 ± 8.00 |
+| No-PQC | 72.76 ± 4.11 | 73.04 ± 8.00 |
+| No-Quantum | 84.13 ± 2.86 | 81.54 ± 3.55 |
+| FedQTrust | 71.70 ± 4.17 | 74.23 ± 5.65 |
 
-## GPU Installation
+**E7: overhead per round.**
+- Quantum-layer training: 42.3 s (k = 5).
+- QAOA selection: 4.1 s.
+- ML-KEM-768: 13.7 ms.
+- ML-DSA-65: 33.9 ms.
+- Total round time is 1,184% above FedAvg.
 
-Create a virtual environment:
+### Summary of findings
+- **Supported:**
+  - The QUBO selection objective is the main robustness component. Under LIE on PathMNIST it beats Krum and FLTrust by more than 20 points.
+  - Removing QUBO costs 19–21 points under label flipping.
+  - SA reaches similar accuracy to QAOA, so the gain comes from the objective, not from the quantum solver.
+  - Post-quantum cryptography overhead is negligible: under 0.3 ms per client and 0.17% of traffic.
+- **Not supported:**
+  - In the multi-modal federation, FedQTrust is 2–7 points below FedAvg.
+  - The simulated 4-qubit layer does not improve accuracy over a classical CNN (E4, E5).
+  - The QAOA approximation ratio does not improve with depth.
+  - The a/√t + b convergence fit fails (R² < 0.06; clients use Adam).
+  - The overhead target of under 30% is not met.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-```
+## Deviations from the specification
 
-Install a CUDA PyTorch wheel matching your server. Example for CUDA 12.1:
+1. **QAOA size cap.** The trust filter typically leaves about 40 eligible clients, so QAOA runs on the 15 most-trusted (seeded tie-break). Larger sets use SA (for example, K = 80 in E8).
+2. **Warm-up.** The first ⌈K/k⌉ rounds select clients round-robin, so every client has an update before QUBO selection starts. Attacks start at round 10.
+3. **Shot-based simulation.** Above 12 qubits, Aer's statevector method is used with 1,024 shots.
+4. **No Hyperledger Fabric.** Ledger latency and consensus are not measured.
+5. **Other limitations.** The Krum f bound, CITADEL not run, about 0.5M classifier parameters, and Wilcoxon tests with 5 seeds are listed in [results/audit.json](results/audit.json).
 
-```bash
-python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-```
+595 non-trust baseline jobs finished before fixes 1–3 and were carried over unchanged. Their code path is not affected by those fixes.
 
-Example for CUDA 12.4:
+Raw per-round logs (`client_metrics.csv`, `round_metrics.csv`, `trust_trace.csv`, `timing.csv`, 0.05–1.2 GB each) are not included because of GitHub's size limits. They can be regenerated with the run below.
 
-```bash
-python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-```
-
-Install FedQTrust dependencies:
-
-```bash
-python -m pip install -r requirements-dev.txt
-python -m pip install -e .
-```
-
-Optional Qiskit Aer GPU:
-
-```bash
-python -m pip uninstall -y qiskit-aer
-python -m pip install qiskit-aer-gpu
-```
-
-If `qiskit-aer-gpu` is not compatible with the machine, keep normal `qiskit-aer`; FedQTrust reports the fallback instead of pretending GPU quantum simulation was used.
-
-The helper setup script uses the safe default install and checks CUDA visibility:
-
-```bash
-bash scripts/setup_gpu.sh
-```
-
-It does not require Fabric or liboqs.
-
-## Verify CUDA
+## Reproduce
 
 ```bash
-python - <<'PY'
-import torch
-print("torch:", torch.__version__)
-print("cuda available:", torch.cuda.is_available())
-print("cuda version:", torch.version.cuda)
-print("gpu count:", torch.cuda.device_count())
-if torch.cuda.is_available():
-    print("gpu:", torch.cuda.get_device_name(0))
-PY
+cd code
+bash setup_server.sh                                  # creates .venv (liboqs required)
+.venv/bin/python run.py data --config settings.json   # downloads MedMNIST into data/raw
+.venv/bin/python -m pytest tests -q
+bash run_complete.sh 0,1,2,3                          # or: bash fedq_launch.sh (uses gpus.conf)
+.venv/bin/python server.py status
+.venv/bin/python run.py report --config settings.json
 ```
 
-Then run:
-
-```bash
-python -m fedqtrust preflight --profile smoke --device auto --output-dir output
-```
-
-For strict infrastructure checks:
-
-```bash
-python -m fedqtrust preflight --profile paper --device cuda --output-dir output
-```
-
-Paper mode requires real external services such as Hyperledger Fabric and liboqs. If they are missing, preflight fails clearly.
-
-## Required Smoke Test
-
-```bash
-python -m fedqtrust smoke-test --download-data --device auto --output-dir output/smoke_test
-```
-
-Expected final line:
-
-```text
-[PASS] SMOKE TEST COMPLETE
-```
-
-Success file:
-
-```text
-output/smoke_test/SMOKE_TEST_PASSED.txt
-```
-
-The smoke test downloads or validates:
-
-- PathMNIST
-- OCTMNIST
-- PneumoniaMNIST
-- RetinaMNIST
-- BreastMNIST
-
-All archives stay in `data/raw/` and are ignored by git.
-
-## One-Command GPU Run to Share Results
-
-Ask the GPU-server user to run this after installation:
-
-```bash
-bash scripts/run_gpu_once.sh
-```
-
-This command:
-
-- downloads or validates all five MedMNIST datasets
-- uses `--device auto` and CUDA when available
-- trains `classical_cnn` and `fedqcnn` once on each dataset
-- evaluates official MedMNIST test splits
-- records round-level metrics, final metrics, environment metadata, figures, tables, model checkpoints, and a `DONE` file
-- creates a zip inside `output/gpu_once/` that can be sent back
-
-The result bundle is clearly labeled as a GPU one-shot validation run. It is useful for checking that the full installed code runs on the server and for collecting first real metrics. It is not the full paper E1-E9 experiment grid.
-
-Copy-paste instructions for the GPU user:
-
-```bash
-git clone https://github.com/diwakardkk/FedQTrust.git
-cd FedQTrust
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-
-# Choose the CUDA wheel matching the server. CUDA 12.4 example:
-python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-
-python -m pip install -r requirements-dev.txt
-python -m pip install -e .
-python -m pytest -q
-python -m fedqtrust smoke-test --download-data --device auto --output-dir output/smoke_test
-bash scripts/run_gpu_once.sh
-```
-
-Default run:
-
-```bash
-python -m fedqtrust run-gpu-once \
-  --download-data \
-  --device auto \
-  --output-dir output/gpu_once \
-  --rounds 3 \
-  --batch-size 128 \
-  --num-workers 0 \
-  --models classical_cnn,fedqcnn \
-  --datasets pathmnist,octmnist,pneumoniamnist,retinamnist,breastmnist \
-  --require-cuda \
-  --amp
-```
-
-Longer run:
-
-```bash
-ROUNDS=20 BATCH_SIZE=256 NUM_WORKERS=0 bash scripts/run_gpu_once.sh
-```
-
-Quick server check:
-
-```bash
-ROUNDS=1 DATASETS=pneumoniamnist MODELS=classical_cnn bash scripts/run_gpu_once.sh
-```
-
-After completion, send back:
-
-```text
-output/gpu_once/run_YYYYMMDD_HHMMSS.zip
-```
-
-## CPU Smoke Test
-
-Use this on a CPU-only machine to verify the installation, datasets, model forward/backward paths, trust/QUBO logic, attacks, aggregation, plotting, and tables:
-
-```bash
-bash scripts/run_cpu_smoke.sh
-```
-
-Equivalent direct command:
-
-```bash
-python -m fedqtrust smoke-test --download-data --device cpu --output-dir output/smoke_test_cpu
-```
-
-The success marker is saved at:
-
-```text
-output/smoke_test_cpu/SMOKE_TEST_PASSED.txt
-```
-
-## Real Scientific Results Suite
-
-Use this fast CPU command to test that the figure/table pipeline works with sample artifacts:
-
-```bash
-bash scripts/run_publication_test_sample.sh
-```
-
-It writes:
-
-```text
-output/publication_test_sample/
-output/publication_test_sample.zip
-```
-
-For the GPU/server scientific result run, the command now trains implemented models first and then builds plots/tables by reading the saved real CSV metrics:
-
-```bash
-CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper ROUNDS=100 bash scripts/run_full_experiment_once.sh
-```
-
-For a CPU-only real training run:
-
-```bash
-PYTORCH_CUDA=cpu DEVICE=cpu MODE=paper ROUNDS=100 STRICT_INFRA=false bash scripts/run_full_experiment_once.sh
-```
-
-The command creates:
-
-```text
-output/scientific_results/
-output/scientific_results.zip
-output/scientific_results/raw_training/<run_id>/
-```
-
-Important: `publication-suite --mode paper` is disabled because it previously generated paper-looking placeholder metrics. Use the one-command runner above. It runs real training through `run-gpu-once`, then `real-results-suite` reads those saved metrics and creates the final plots, tables, statistics, summaries, checkpoints manifest, and zip bundle.
-
-`MODE=test` remains only for fast pipeline verification and must not be used for manuscript claims.
-
-## Known-Good 100-Round Training Script
-
-The previously validated standalone training workflow is available from the repository root and saves a complete results bundle:
-
-```bash
-python run_training_final_correct.py --device cpu --rounds 100 --output-dir output/final_correct
-```
-
-For a quick CPU test:
-
-```bash
-python run_training_final_correct.py --device cpu --rounds 1 --max-samples 64 --datasets pneumoniamnist --output-dir output/final_correct_quick
-```
-
-The script saves `round_metrics.csv`, `final_metrics.csv`, `training_loss.png`, model checkpoints, metadata, a `DONE` file, and a zip bundle under `output/final_correct/`.
-
-## Strict Publishable Artifact Audit
-
-For a paper submission, do not use the one-shot GPU bundle as the final result set. A publishable FedQTrust result set must include completed E1-E9 runs, raw per-round/per-client metrics, all required paper figures and tables, statistics, environment metadata, and strict evidence for paper-only infrastructure.
-
-## One Command for a GPU Collaborator
-
-After cloning the repository, the collaborator can run the real GPU result workflow with one command:
-
-```bash
-CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper ROUNDS=100 bash scripts/run_full_experiment_once.sh
-```
-
-Use `PYTORCH_CUDA=cu121` or another supported value if the server needs a different PyTorch CUDA wheel:
-
-```bash
-PYTORCH_CUDA=cu121 bash scripts/run_full_experiment_once.sh
-```
-
-For a CPU-only machine, use:
-
-```bash
-PYTORCH_CUDA=cpu DEVICE=cpu MODE=paper ROUNDS=100 STRICT_INFRA=false bash scripts/run_full_experiment_once.sh
-```
-
-This command creates `.venv`, installs dependencies, installs CPU or CUDA PyTorch based on `PYTORCH_CUDA`, checks `nvidia-smi` only for GPU runs, runs tests and smoke checks, trains the implemented models on real MedMNIST data, reads the saved raw metrics, generates figures/tables/statistics, audits the output, and creates:
-
-```text
-output/scientific_results/
-output/scientific_results.zip
-```
-
-The collaborator should send back `output/scientific_results.zip`.
-
-The generated `summaries/scientific_claims_supported.md` file is the paper-safety checklist. It lists exactly which claims are supported by the real output and which E1-E9 claims still require separate raw experiments.
-
-## Real E1 Attack/Baseline Experiments
-
-Run real E1 attack-resilience experiments with:
-
-```bash
-python -m fedqtrust run-e1-real --device cuda --download-data --require-cuda --amp --output-dir output/scientific_results/e1_attack_resilience
-```
-
-The default E1 grid is:
-
-```text
-8 methods x 7 attacks x 5 datasets x 5 seeds x 100 rounds
-```
-
-It writes:
-
-```text
-output/scientific_results/e1_attack_resilience/raw_metrics/e1_final_metrics.csv
-output/scientific_results/e1_attack_resilience/raw_metrics/e1_round_metrics.csv
-output/scientific_results/e1_attack_resilience/raw_metrics/e1_client_metrics.csv
-output/scientific_results/e1_attack_resilience/tables/
-output/scientific_results/e1_attack_resilience/figures/
-output/scientific_results/e1_attack_resilience/checkpoints/
-output/scientific_results/e1_attack_resilience.zip
-```
-
-To include E1 in the one-command GPU result bundle:
-
-```bash
-CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_E1=true ROUNDS=100 E1_ROUNDS=100 OUTPUT_DIR=output/scientific_results_e1 bash scripts/run_full_experiment_once.sh
-```
-
-To run the complete real E1-E9 paper workflow in one command:
-
-```bash
-CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA=cu124 DEVICE=cuda MODE=paper RUN_ALL_REAL=true ROUNDS=200 E3_ROUNDS=200 NUM_WORKERS=0 OUTPUT_DIR=output/paper_real bash scripts/run_full_experiment_once.sh
-```
-
-This writes the final bundle to:
-
-```text
-output/paper_real/
-output/paper_real.zip
-```
-
-For a quick E1 smoke check only:
-
-```bash
-python -m fedqtrust run-e1-real --device cpu --output-dir output/e1_quick_check --rounds 1 --seeds 42 --datasets breastmnist --methods FedAvg,FedQTrust --attacks benign,sign_flip --clients 2 --clients-per-round 2 --max-train-samples 32 --max-eval-samples 32 --num-workers 0 --no-save-checkpoints
-```
-
-## Results Suite With Readiness Audit
-
-This script runs the implemented real training workflow, then builds the result bundle by reading the saved raw metrics. It does not write E1-E9 placeholder manifest entries.
-
-```bash
-bash scripts/run_publishable_suite.sh
-```
-
-To run only the strict real-results audit manually:
-
-```bash
-python -m fedqtrust audit-real-results --strict-infra --output-dir output/scientific_results
-```
-
-The audit writes:
-
-```text
-output/scientific_results/summaries/real_results_audit.md
-```
-
-The manual audit exits with code `0` only when real metric files, figures, tables, statistics, checkpoints, CUDA evidence, Fabric evidence, and liboqs evidence are present. It exits with code `1` and lists blockers otherwise.
-
-## Commands
-
-Download data:
-
-```bash
-python -m fedqtrust download-data --output-dir output
-```
-
-Prepare deterministic partitions:
-
-```bash
-python -m fedqtrust prepare-data --output-dir output
-```
-
-Run tests:
-
-```bash
-python -m pytest -q
-```
-
-Run one experiment manifest:
-
-```bash
-python -m fedqtrust run --experiment E1 --profile phase1 --device cuda --resume --output-dir output
-```
-
-Run the one-shot GPU validation:
-
-```bash
-python -m fedqtrust run-gpu-once --download-data --device auto --output-dir output/gpu_once --rounds 3 --amp
-```
-
-Audit publication readiness:
-
-```bash
-python -m fedqtrust audit-publication --strict-infra --output-dir output
-```
-
-Run the implemented results suite:
-
-```bash
-bash scripts/run_all_experiments.sh
-```
-
-Generate reports from existing raw outputs:
-
-```bash
-python -m fedqtrust generate-report --output-dir output
-```
-
-## Profiles
-
-`smoke`: fast checks using real implementation paths, tiny data batches, in-memory blockchain backend, and clear skips for unavailable external services.
-
-`phase1`: data pipeline, partitions, CNN/FedQCNN paths, trust, QUBO exact/SA, FedAvg/FedProx/Krum/FLTrust foundations, label flip and LIE paths.
-
-`phase2`: expanded experiment and infrastructure paths for QAOA, PQC, Fabric, extra attacks, sensitivity, scalability, and overhead studies.
-
-`paper`: strict mode. Real datasets, configured rounds/seeds, QAOA dependencies where specified, liboqs, and Hyperledger Fabric are required. No fake result generation.
-
-## Outputs
-
-All generated outputs go under `output/`:
-
-```text
-output/environment/
-output/smoke_test/
-output/experiments/E1/
-output/experiments/E2/
-output/paper_figures/
-output/paper_tables/
-output/statistics/
-output/summaries/
-```
-
-Do not commit `output/`.
-
-## Hyperledger Fabric
-
-Paper-strict blockchain experiments require Fabric:
-
-```bash
-docker --version
-peer version
-```
-
-Deploy chaincode named `fedqtrust` with:
-
-- `Ping`
-- `SetTrust`
-- `GetTrust`
-- `LogSelection`
-- `GetSelection`
-
-The local smoke test uses `InMemoryBlockchain` and reports Fabric as skipped when Docker/Fabric are unavailable.
-
-## liboqs
-
-For paper-strict PQC runs, install Open Quantum Safe and `liboqs-python` with:
-
-- ML-KEM-768
-- ML-DSA-65
-
-Verify:
-
-```bash
-python - <<'PY'
-import oqs
-print("KEM count:", len(oqs.get_enabled_kem_mechanisms()))
-print("SIG count:", len(oqs.get_enabled_sig_mechanisms()))
-PY
-```
-
-## SLURM
-
-Single experiment:
-
-```bash
-EXPERIMENT=E1 sbatch slurm/run_experiment.sbatch
-```
-
-Seed array:
-
-```bash
-EXPERIMENT=E1 sbatch slurm/run_seed_array.sbatch
-```
-
-## Upload to GitHub
-
-This repository is intended for:
-
-```text
-https://github.com/diwakardkk/FedQTrust.git
-```
-
-From this folder:
-
-```bash
-git status
-git add .
-git status
-git commit -m "Initial FedQTrust implementation scaffold"
-git branch -M main
-git remote add origin https://github.com/diwakardkk/FedQTrust.git
-git push -u origin main
-```
-
-If the remote already exists:
-
-```bash
-git remote set-url origin https://github.com/diwakardkk/FedQTrust.git
-git push -u origin main
-```
-
-Before pushing, confirm these are **not** staged:
-
-```bash
-git status --short
-```
-
-Do not push:
-
-```text
-main-v2.tex
-data/raw/
-output/
-```
-
-## Current Local Validation
-
-Smoke test passed:
-
-```bash
-python -m fedqtrust smoke-test --download-data --device auto --output-dir output/smoke_test
-```
-
-Unit tests passed:
-
-```text
-13 passed
-```
+Runs resume automatically from per-job checkpoints. A change to the code requires a new `output_dir`, because outputs are tied to a hash of the source code.

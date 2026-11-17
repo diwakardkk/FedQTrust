@@ -1,0 +1,6 @@
+dataset,mean (s),std (s)
+breastmnist,0.044,0.007
+octmnist,20.403,0.154
+pathmnist,11.675,0.13
+pneumoniamnist,0.049,0.01
+retinamnist,0.126,0.011

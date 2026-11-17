@@ -1,23 +1,31 @@
-main-v2.tex
-FedQTrust_results/
-FedQTrust_results.zip
-publication_suite/
-publication_suite.zip
-scientific_results/
-scientific_results.zip
-data/raw/*
-!data/raw/.gitkeep
-data/partitions/*
-!data/partitions/.gitkeep
-data/metadata/*
-!data/metadata/.gitkeep
-output/*
-!output/.gitkeep
-*.pt
-*.pth
-__pycache__/
-.pytest_cache/
 .venv/
-.env
-*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/
 .DS_Store
+.claude/
+*.pt
+*.zip
+
+# Run-time data and outputs (not versioned)
+code/.venv/
+code/output/
+code/data/
+code/STOP
+
+# Manuscript and LaTeX sources are not published in this repository
+paper/
+*.tex
+*.pdf
+
+# Stale packaging notes containing lab-server details
+code/README.md
+code/README_RUN.txt
+code/SHA256SUMS.json
+code/docs/GPU_SERVER.md
+
+# Raw per-round/per-client logs (0.05–1.2 GB each; above GitHub limits)
+results/tables/client_metrics.csv
+results/tables/round_metrics.csv
+results/tables/trust_trace.csv
+results/tables/timing.csv

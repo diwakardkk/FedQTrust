@@ -1,0 +1,30 @@
+{
+  "all_jobs_complete": true,
+  "benchmarks_complete": true,
+  "execution_scope": "local_ledger_with_real_crypto",
+  "fabric_network_measured": false,
+  "completed": 1071,
+  "expected": 1071,
+  "publication_ready": false,
+  "limitations": [
+    "LOCAL LEDGER RUN: cryptography and training are measured; Fabric commit latency, consensus and on-chain verification are unmeasured. The No-Blockchain comparison cannot establish a Fabric benefit.",
+    "Exact server deployment and full paper grid require execution.",
+    "Classical/QNN heads have about 0.5M parameters, not the manuscript 8K claim.",
+    "ZZFeatureMap uses feature/angle encoding, not amplitude encoding.",
+    "Sparse classes retain global label dimensions; labels are never changed per client.",
+    "Krum f is bounded by available participants; requested Byzantine settings can violate its guarantees.",
+    "LIE uses the largest z in [0, z_max] accepted by Krum (grid + binary search); if Krum accepts none, the Baruch et al. quantile z (capped at z_max) is used.",
+    "Malicious client ids {1..floor(rK)} interleave modalities (id c -> dataset c mod 5), so every modality contains attackers.",
+    "Label-flipping clients relabel a fixed seeded set of samples (label_fraction=1.0), so r equals the relabelled fraction of training samples.",
+    "QAOA reports the most probable bitstring of the optimized circuit; best-sampled and expected objectives are logged separately. QAOA timeouts fall back to SA and are recorded per round.",
+    "Secure transport is not privacy-preserving secure aggregation against the server.",
+    "Fabric deployment, endorsement/consensus policy and on-chain signature integration require independent validation.",
+    "PQS-BFL (ML-DSA-65 + ledger + CNN) and SecEdge-MC (ML-KEM + ML-DSA + ledger + CNN) follow Table 4 and have no Byzantine defence, so their accuracy equals FedAvg; they differ only in cryptographic/ledger overhead. They are protocol adaptations, not reproductions of external code.",
+    "CITADEL is named in the abstract but not specified in the baseline table and is not run.",
+    "QUBO pairwise term penalises dissimilar selected pairs, so identical colluding updates are not penalised against each other (Eq. 1 as specified).",
+    "Nairobi-derived noise is an explicit homogeneous extrapolation beyond seven physical qubits.",
+    "Krum pointwise rejection means not selected; its ROC uses the actual Krum distance score.",
+    "Five seeds cannot achieve the proposed Bonferroni threshold with an exact two-sided signed-rank test."
+  ],
+  "missing_outputs": []
+}

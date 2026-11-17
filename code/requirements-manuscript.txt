@@ -1,0 +1,8 @@
+-r requirements.txt
+# Validated QNN/QAOA APIs; match these in the server environment.
+qiskit==2.5.2
+qiskit-machine-learning==0.9.1
+qiskit-optimization==0.7.0
+qiskit-aer==0.17.2
+qiskit-ibm-runtime
+liboqs-python

@@ -1,0 +1,7 @@
+method,attack,clients,Acc (%),selection (s),round (s),|E| mean,TPR,FPR
+FedQTrust,benign,20,74.20 $\pm$ 2.05,6.324,8.01,15.2,nan,0.000
+FedQTrust,benign,40,72.60 $\pm$ 4.18,6.060,7.20,17.0,nan,0.001
+FedQTrust,benign,80,68.06 $\pm$ 5.07,0.133,0.74,25.4,nan,0.006
+FedQTrust,label_flip,20,71.53 $\pm$ 2.94,6.270,8.08,15.2,0.021,0.000
+FedQTrust,label_flip,40,72.22 $\pm$ 3.85,6.187,7.34,17.0,0.042,0.002
+FedQTrust,label_flip,80,62.71 $\pm$ 0.37,0.137,0.80,25.4,0.018,0.005

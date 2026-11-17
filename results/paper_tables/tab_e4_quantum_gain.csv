@@ -1,0 +1,7 @@
+dataset,benign,label_flip,lie
+breastmnist,-1.92 $\pm$ 1.92,-3.21 $\pm$ 2.13,0.00 $\pm$ 0.00
+octmnist,-9.90 $\pm$ 3.66,-5.30 $\pm$ 3.31,-11.44 $\pm$ 5.33
+pathmnist,1.34 $\pm$ 4.20,7.85 $\pm$ 6.12,1.53 $\pm$ 7.92
+pneumoniamnist,-8.62 $\pm$ 2.77,-11.22 $\pm$ 2.43,-8.65 $\pm$ 9.84
+retinamnist,-3.25 $\pm$ 5.45,2.75 $\pm$ 17.71,2.00 $\pm$ 9.17
+"Pearson r=-0.145, p=0.817",--,--,--

@@ -1,0 +1,35 @@
+kind,name,description,present
+figure,Fig01_architecture,Manual: system architecture diagram,True
+figure,Fig02_E1_label_flip,"E1 accuracy vs round, all methods, 20% data poisoning, PneumoniaMNIST",True
+figure,Fig03_E1_LIE,"E1 accuracy vs round, all methods, 20% LIE, PneumoniaMNIST",True
+figure,Fig04_trust,"E1 trust evolution, 3 benign + 3 malicious clients",True
+figure,Fig05_QAOA_quality,E2 QAOA approximation ratio vs depth p,True
+figure,Fig06_detection_ROC,E2 detection ROC: QUBO vs Krum vs FLTrust vs L2-norm,True
+figure,Fig07_convergence,"E3 gradient-norm proxy vs round for f in {0,0.1,0.2,0.3}",True
+figure,Fig08_modality_gain,E4 quantum gain per modality with dataset size,True
+figure,Fig09_ablation,"E5 ablation accuracy bars: config x {data poison, LIE}",True
+figure,Fig10_sensitivity,E6 heatmaps alpha-theta and lambda-mu,True
+figure,Fig11_overhead,E7 stacked per-component timing,True
+figure,Fig12_scalability,E8 accuracy and round time vs K,True
+figure,Fig13_participation,E9 accuracy and TPR/FPR vs k,True
+table,tab_main_results,,True
+table,tab_main_results_pneumoniamnist,,True
+table,tab_main_results_pathmnist,,True
+table,tab_e1_supplementary,,True
+table,tab_e1_detection,,True
+table,tab_accuracy_at_rounds,,True
+table,tab_e2_selection,,True
+table,tab_e2_approximation_ratio,,True
+table,tab_e2_solver_time,,True
+table,tab_e2_noise,,True
+table,tab_e3_convergence,,True
+table,tab_e4_quantum_gain,,True
+table,tab_ablation_results,,True
+table,tab_e5_detection,,True
+table,tab_e6_sensitivity,,True
+table,tab_overhead,,True
+table,tab_e7_components,,True
+table,tab_e7_local_training,,True
+table,tab_e7_communication,,True
+table,tab_e8_scalability,,True
+table,tab_e9_clients_per_round,,True

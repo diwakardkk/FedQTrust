@@ -1,3 +1,0 @@
--r requirements.txt
-# Optional, install manually only when compatible with the server:
-# qiskit-aer-gpu
