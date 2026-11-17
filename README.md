@@ -29,11 +29,34 @@ FedQTrust/
     └── audit.json           Run audit and documented limitations
 ```
 
+## Datasets
+
+Five 2D datasets from [MedMNIST v2](https://medmnist.com/) at 28×28 resolution. Each dataset is a different imaging modality.
+
+| Dataset | Modality | Task | Classes | Train | Val | Test |
+|---|---|---|---|---|---|---|
+| PathMNIST | Colon pathology (H&E) | Multi-class | 9 | 89,996 | 10,004 | 7,180 |
+| OCTMNIST | Retinal OCT | Multi-class | 4 | 97,477 | 10,832 | 1,000 |
+| PneumoniaMNIST | Chest X-ray | Binary | 2 | 4,708 | 524 | 624 |
+| RetinaMNIST | Fundus camera | Ordinal regression (treated as 5 classes) | 5 | 1,080 | 120 | 400 |
+| BreastMNIST | Breast ultrasound | Binary | 2 | 546 | 78 | 156 |
+
+**Data use in this work**
+- **Download:** `python run.py data` downloads the official `.npz` files (via the `medmnist` package) into `code/data/raw`. The datasets are not included in this repository.
+- **Preprocessing:** RGB images (PathMNIST, RetinaMNIST) are converted to grayscale and scaled to [0, 1], so every modality uses a single input channel.
+- **Server root set:** 1% of each official training split is held out as the server's clean root dataset, used by FLTrust.
+- **Client partition:** the remaining 99% is split across the clients of that dataset with a Dirichlet(α = 0.5) label partition (partition seed 42). The default K = 40 gives 8 clients per dataset. E8 uses K = 20 and K = 80, which gives 4 and 16 clients per dataset.
+- **Client split:** each client splits its data 80/20 into local training and validation. The validation part is used for the trust score's accuracy term.
+- **Evaluation:** test accuracy, weighted F1 and AUC are measured on the **official test split** of each dataset. The official validation split is not used.
+- **Macro-average:** the E1 macro-average is the unweighted mean over the five datasets.
+
+If you use these datasets, cite: J. Yang et al., "MedMNIST v2 – A large-scale lightweight benchmark for 2D and 3D biomedical image classification," *Scientific Data* 10, 41 (2023).
+
 ## Setup
 
 | Item | Value |
 |---|---|
-| Datasets | MedMNIST v2, 28×28: PathMNIST, OCTMNIST, PneumoniaMNIST, RetinaMNIST, BreastMNIST |
+| Datasets | 5 MedMNIST v2 modalities (see above), 28×28 grayscale |
 | Federation | K = 40 clients (8 per dataset), Dirichlet α = 0.5, k = 5 per round, 100 rounds, 3 local epochs |
 | Model | Shared CNN backbone + 4-qubit ZZFeatureMap / RealAmplitudes (reps = 2) quantum layer, 5 heads |
 | Selection | Trust filter (τ ≥ θ) → QUBO solved with QAOA (p = 3), simulated-annealing fallback |
